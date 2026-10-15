@@ -376,6 +376,9 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         if (e.PropertyName == nameof(ClassificationRowViewModel.DestinationCode))
             RefreshAvailableCodes();
         RefreshTotals();
+        // Con un filtro activo, una fila que deja de cumplirlo (p. ej. se resolvió con "Solo sin resolver") sale de la vista.
+        if (ShowOnlyUnresolved || FilterText.Trim().Length > 0)
+            RefreshVisibleRows();
     }
 
     private void RefreshAvailableCodes()

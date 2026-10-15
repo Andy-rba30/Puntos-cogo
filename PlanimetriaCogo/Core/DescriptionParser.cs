@@ -127,7 +127,8 @@ public sealed class DescriptionParser
     /// </summary>
     public static string Rebuild(ParsedDescription parsed, string newBaseCode)
     {
-        var sb = new StringBuilder(DescriptionNormalizer.Normalize(newBaseCode));
+        // El código llega tal cual se eligió en la ventana (normalizado, o exacto con "Usar nombre como código").
+        var sb = new StringBuilder(newBaseCode.Trim());
         if (parsed.Series.HasValue)
             sb.Append(parsed.Series.Value);
         foreach (var mark in parsed.Marks)

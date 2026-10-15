@@ -51,9 +51,13 @@ public sealed class PlanimetryEngine
             }
 
             var parsed = _parser.Parse(raw);
-            var newDescription = DescriptionParser.Rebuild(parsed, rule.DestinationCode);
-            if (!string.Equals(newDescription, raw, StringComparison.Ordinal))
-                result.DescriptionChanges.Add(new DescriptionChange(point, newDescription));
+            // Con "Usar nombre como código" el código es la descripción exacta: no hay nada que reescribir.
+            if (!string.Equals(rule.DestinationCode, raw.Trim(), StringComparison.Ordinal))
+            {
+                var newDescription = DescriptionParser.Rebuild(parsed, rule.DestinationCode);
+                if (!string.Equals(newDescription, raw, StringComparison.Ordinal))
+                    result.DescriptionChanges.Add(new DescriptionChange(point, newDescription));
+            }
 
             if (rule.Kind == CodeKind.Point)
             {

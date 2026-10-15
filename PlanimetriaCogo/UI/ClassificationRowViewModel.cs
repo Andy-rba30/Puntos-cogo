@@ -59,6 +59,20 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// Código destino exacto, sin normalizar ("Usar nombre como código"): respeta mayúsculas, minúsculas, tildes y
+    /// espacios. Devuelve true si cambió.
+    /// </summary>
+    public bool SetDestinationCodeExact(string? code)
+    {
+        var text = (code ?? "").Trim();
+        if (text == Rule.DestinationCode)
+            return false;
+        ClassificationProposer.ApplyDestination(Rule, text, _catalog, _settings, BlockMode, exact: true);
+        RaiseAll();
+        return true;
+    }
+
     /// <summary>Tipo mostrado en español: Línea / Punto / Ignorar.</summary>
     public string KindLabel
     {

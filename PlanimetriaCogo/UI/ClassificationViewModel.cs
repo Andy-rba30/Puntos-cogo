@@ -185,6 +185,20 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>Color ACI de la capa única (1..255; fuera de rango se conserva el anterior).</summary>
+    public short SingleLayerColor
+    {
+        get => _settings.SingleLayerColor;
+        set
+        {
+            if (value is <= 0 or >= 256 || value == _settings.SingleLayerColor)
+                return;
+            _settings.SingleLayerColor = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SettingsSummary));
+        }
+    }
+
     /// <summary>Resumen de los parámetros vigentes (se actualiza al cerrar la ventana de parámetros).</summary>
     public string SettingsSummary => (BlockMode
         ? $"orden del archivo · distMax {Limit(_settings.DistMax)} · marcas {(_settings.UseDescriptionMarks ? "sí" : "no")} · series {(_settings.SplitSeries ? "sí" : "no")} · " +
@@ -192,7 +206,7 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         : $"offsetMax {_settings.OffsetMax:0.##} m · distMax {Limit(_settings.DistMax)} · salto PK {Limit(_settings.StationGapMax)} · " +
           $"tolEje {_settings.AxisTolerance:0.###} m · marcas {(_settings.UseDescriptionMarks ? "sí" : "no")} · series {(_settings.SplitSeries ? "sí" : "no")} · " +
           $"orden {(_settings.Order == PointOrder.Station ? "progresiva" : "número")}")
-        + (_settings.SingleLayer ? $" · capa única: {_settings.SingleLayerName}" : " · una capa por código");
+        + (_settings.SingleLayer ? $" · capa única: {_settings.SingleLayerName} (color {_settings.SingleLayerColor})" : " · una capa por código");
 
     private static string Limit(double value) => value > 0 ? $"{value:0.##} m" : "sin límite";
 
@@ -205,6 +219,7 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(KeepGeneratedAxis));
         OnPropertyChanged(nameof(SingleLayer));
         OnPropertyChanged(nameof(SingleLayerName));
+        OnPropertyChanged(nameof(SingleLayerColor));
         RefreshTotals();
     }
 
@@ -257,10 +272,10 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Botón "Usar nombre como código": cada fila toma como código destino su propia descripción (normalizada, sin
-    /// marcas ni serie), así deja de estar "sin resolver" sin pasar por el catálogo ni por la similitud. Actúa sobre
-    /// las filas marcadas en Sel. o seleccionadas en la tabla; sin selección, sobre todas las filas sin resolver.
-    /// Las vacías y numéricas quedan en Ignorar. Devuelve cuántas filas cambiaron.
+    /// Botón "Usar nombre como código": cada fila toma como código destino su propia descripción tal cual
+    /// (mayúsculas, minúsculas y espacios respetados), así deja de estar "sin resolver" sin pasar por el catálogo ni
+    /// por la similitud. Actúa sobre las filas marcadas en Sel. o seleccionadas en la tabla; sin selección, sobre
+    /// todas las filas sin resolver. Las vacías y numéricas quedan en Ignorar. Devuelve cuántas filas cambiaron.
     /// </summary>
     public int UseNamesAsCodes(IEnumerable<ClassificationRowViewModel>? gridSelection = null)
     {
@@ -276,10 +291,9 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         {
             if (row.Rule.Kind == CodeKind.Ignore)
                 continue;
-            var code = ClassificationProposer.CodeFromDescription(row.Rule.Original, _settings);
-            if (code == null || code == row.DestinationCode)
+            var code = ClassificationProposer.CodeFromDescription(row.Rule.Original);
+            if (code == null || !row.SetDestinationCodeExact(code))
                 continue;
-            row.DestinationCode = code;
             row.IsSelected = false;
             changed++;
         }
@@ -553,7 +567,7 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         {
             var rule = row.Rule;
             total += rule.Count;
-            if (rule.DestinationCode == axisCode)
+            if (DescriptionNormalizer.Normalize(rule.DestinationCode) == axisCode)
                 axisPoints += rule.Count;
             if (rule.Kind == CodeKind.Ignore)
                 ignored += rule.Count;

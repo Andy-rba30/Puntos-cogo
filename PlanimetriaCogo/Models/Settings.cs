@@ -118,8 +118,11 @@ public sealed class Settings
     /// <summary>Dibujar todas las líneas en una sola capa (<see cref="SingleLayerName"/>) en vez de una capa por código y lado.</summary>
     public bool SingleLayer { get; set; } = false;
 
-    /// <summary>Nombre de la capa única. Cada línea conserva el color de su fila como color de entidad.</summary>
+    /// <summary>Nombre de la capa única.</summary>
     public string SingleLayerName { get; set; } = "Planimetría";
+
+    /// <summary>Color ACI de la capa única (7 = blanco/negro). Las líneas se dibujan ByLayer: color uniforme.</summary>
+    public short SingleLayerColor { get; set; } = 7;
 
     /// <summary>Prefijo de capa para líneas.</summary>
     public string LineLayerPrefix { get; set; } = "PL-";
@@ -168,6 +171,7 @@ public sealed class Settings
         UseDescriptionAsCode = other.UseDescriptionAsCode;
         SingleLayer = other.SingleLayer;
         SingleLayerName = other.SingleLayerName;
+        SingleLayerColor = other.SingleLayerColor;
         LineLayerPrefix = other.LineLayerPrefix;
         PointLayerPrefix = other.PointLayerPrefix;
         LeftLayerSuffix = other.LeftLayerSuffix;

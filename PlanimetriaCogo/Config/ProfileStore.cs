@@ -78,7 +78,8 @@ public sealed class Profile
                 !normalized.TryGetValue(DescriptionNormalizer.Normalize(rule.Original), out entry))
                 continue;
 
-            var destination = DescriptionNormalizer.Normalize(entry.DestinationCode);
+            // Tal cual se guardó: normalizado, o exacto si vino de "Usar nombre como código".
+            var destination = (entry.DestinationCode ?? "").Trim();
             var layer = LayerNames.Sanitize(entry.LayerBase);
             var color = entry.ColorIndex is > 0 and < 256 ? entry.ColorIndex : (short)7;
 

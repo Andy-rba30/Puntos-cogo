@@ -1,6 +1,9 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
 
@@ -11,10 +14,11 @@ public partial class ClassificationWindow : Window
 {
     private readonly ClassificationViewModel _viewModel;
 
-    // Edición en bloque: fila, propiedad y valor previo de la celda que se está editando.
+    // Edición en bloque: fila, propiedad, valor previo y filas seleccionadas al empezar a editar la celda.
     private ClassificationRowViewModel? _editingRow;
     private string? _editingProperty;
     private object? _editingOldValue;
+    private List<ClassificationRowViewModel> _editingSelection = new();
 
     public ClassificationWindow(ClassificationViewModel viewModel)
     {
@@ -160,6 +164,8 @@ public partial class ClassificationWindow : Window
         _editingOldValue = _editingRow != null && !string.IsNullOrEmpty(_editingProperty)
             ? _editingRow.GetEditableValue(_editingProperty)
             : null;
+        // Se toma aquí: el clic que confirma la edición puede cambiar la selección antes de CellEditEnding.
+        _editingSelection = RowsGrid.SelectedItems.OfType<ClassificationRowViewModel>().ToList();
     }
 
     private void RowsGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
@@ -167,9 +173,11 @@ public partial class ClassificationWindow : Window
         var row = _editingRow;
         var property = _editingProperty;
         var oldValue = _editingOldValue;
+        var selection = _editingSelection;
         _editingRow = null;
         _editingProperty = null;
         _editingOldValue = null;
+        _editingSelection = new List<ClassificationRowViewModel>();
 
         if (e.EditAction != DataGridEditAction.Commit || row == null || string.IsNullOrEmpty(property))
             return;
@@ -177,13 +185,66 @@ public partial class ClassificationWindow : Window
             return;
 
         // El enlace de la celda se confirma después de este evento: propagar cuando el nuevo valor ya esté en la fila.
-        var selection = RowsGrid.SelectedItems.OfType<ClassificationRowViewModel>().ToList();
         Dispatcher.InvokeAsync(() =>
         {
             if (Equals(row.GetEditableValue(property), oldValue))
                 return;
             _viewModel.PropagateEdit(row, property, selection);
         }, DispatcherPriority.Background);
+    }
+
+    /// <summary>
+    /// Un clic simple sobre una fila que ya forma parte de una selección múltiple la dejaría sola (comportamiento
+    /// del DataGrid). Aquí se conserva la selección y se abre la celda directamente en edición, para que el cambio
+    /// se aplique a todas las filas seleccionadas. Con Ctrl o Mayús se deja actuar al DataGrid.
+    /// </summary>
+    private void RowsGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (Keyboard.Modifiers != ModifierKeys.None || RowsGrid.SelectedItems.Count < 2)
+            return;
+        var cell = FindAncestor<DataGridCell>(e.OriginalSource as DependencyObject);
+        if (cell == null || cell.IsEditing)
+            return;
+        if (cell.DataContext is not ClassificationRowViewModel row || !RowsGrid.SelectedItems.Contains(row))
+            return;
+
+        e.Handled = true;
+        if (!cell.IsKeyboardFocusWithin)
+            cell.Focus();
+
+        switch (cell.Column.SortMemberPath)
+        {
+            case nameof(ClassificationRowViewModel.IsSelected):
+                // Marca Sel. sin perder la selección de la tabla.
+                row.IsSelected = !row.IsSelected;
+                return;
+            case nameof(ClassificationRowViewModel.SplitBySide):
+                // La casilla no recibe el clic (se consumió): se abre la edición y se alterna el valor a mano.
+                RowsGrid.CurrentCell = new DataGridCellInfo(cell);
+                if (RowsGrid.BeginEdit())
+                    row.SplitBySide = !row.SplitBySide;
+                return;
+            default:
+                if (cell.IsReadOnly)
+                    return;
+                RowsGrid.CurrentCell = new DataGridCellInfo(cell);
+                RowsGrid.BeginEdit();
+                return;
+        }
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? start) where T : DependencyObject
+    {
+        var current = start;
+        while (current != null)
+        {
+            if (current is T match)
+                return match;
+            current = current is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(current)
+                : LogicalTreeHelper.GetParent(current);
+        }
+        return null;
     }
 
     /// <summary>Confirma la celda en edición para que el valor llegue al view-model antes de actuar.</summary>

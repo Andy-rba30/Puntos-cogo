@@ -85,9 +85,18 @@ eligió lo más simple y se deja aquí para revisarlo.
     nuevo valor de esa propiedad se copia a las demás (pasando por el *setter*, así un código destino
     vuelve a proponer tipo, capa y color). La ventana guarda el valor previo en `BeginningEdit` y
     compara en `CellEditEnding` (diferido con `Dispatcher`, porque el enlace se confirma después del
-    evento): abrir una celda y salir sin cambiar nada no propaga. Se usan las marcas de *Sel.* y no
-    solo la selección de la tabla porque un clic simple en una celda deja seleccionada únicamente esa
-    fila. Las marcas se conservan tras propagar para encadenar varios cambios.
+    evento): abrir una celda y salir sin cambiar nada no propaga. La selección de la tabla se toma
+    en `BeginningEdit`, porque el clic que confirma la edición puede cambiarla antes de
+    `CellEditEnding`. Las marcas de *Sel.* se conservan tras propagar para encadenar varios cambios.
+
+    El `DataGrid` deja sola a la fila sobre la que se hace un clic simple aunque forme parte de una
+    selección múltiple (`MakeFullRowSelection` sin Ctrl/Mayús limpia el resto antes de editar). Para
+    que la edición en bloque funcione con la selección de la tabla, `PreviewMouseLeftButtonDown`
+    intercepta ese caso: si la celda pertenece a una fila ya seleccionada, hay más de una seleccionada
+    y no hay modificadores, marca el evento como manejado (con el foco en la celda, el manejador de
+    clase de `DataGridCell` no toca la selección), fija `CurrentCell` y llama a `BeginEdit()`. La
+    casilla *Por lado* se alterna a mano porque el clic ya se consumió; la casilla *Sel.* solo invierte
+    la marca. Con la celda ya en edición no interviene, así el desplegable se abre con normalidad.
 
 15. **Dibujar con puntos sin resolver** pide confirmación (se dibujará el resto; los sin
     resolver se reportan). El botón se deshabilita si no hay ningún punto que vaya a líneas.

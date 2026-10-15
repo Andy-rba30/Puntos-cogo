@@ -29,8 +29,8 @@
             dibujo salvo que active las opciones de abajo. Las filas sin código destino no se dibujan y se reportan como
             "sin resolver". La capa de las líneas con lados recibe el sufijo -IZQ / -DER al dibujar. Las marcas de la
             descripción (CUNETA I, CUNETA F, CUNETA2) se resuelven por su código base y se respetan al dibujar.
-            Para cambiar varias filas a la vez: márquelas en la columna Sel. y edite cualquiera de ellas; el código,
-            tipo, lado, capa o color que cambie se aplica a todas las marcadas.
+            Para cambiar varias filas a la vez: selecciónelas (clic y Mayús+clic, o Ctrl+clic, o la casilla Sel.) y
+            edite cualquiera de ellas; el código, tipo, lado, capa o color que cambie se aplica a todas las seleccionadas.
         </TextBlock>
 
         <!-- Barra superior: perfiles, catálogo, filtro -->
@@ -69,7 +69,8 @@
                   SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column"
                   RowHeaderWidth="0" GridLinesVisibility="Horizontal" AlternatingRowBackground="#F5F5F5"
                   CanUserSortColumns="True" EnableRowVirtualization="True"
-                  BeginningEdit="RowsGrid_BeginningEdit" CellEditEnding="RowsGrid_CellEditEnding">
+                  BeginningEdit="RowsGrid_BeginningEdit" CellEditEnding="RowsGrid_CellEditEnding"
+                  PreviewMouseLeftButtonDown="RowsGrid_PreviewMouseLeftButtonDown">
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
                     <Style.Triggers>

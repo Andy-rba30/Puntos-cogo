@@ -80,6 +80,15 @@ eligió lo más simple y se deja aquí para revisarlo.
 14. **"Unificar selección"** usa las filas marcadas en la columna *Sel.*; si no hay ninguna,
     usa las filas seleccionadas en la tabla.
 
+    **Edición en bloque** (`ClassificationViewModel.PropagateEdit`): al confirmar la edición de una
+    celda, si la fila editada está marcada en *Sel.* o seleccionada en la tabla junto con otras, el
+    nuevo valor de esa propiedad se copia a las demás (pasando por el *setter*, así un código destino
+    vuelve a proponer tipo, capa y color). La ventana guarda el valor previo en `BeginningEdit` y
+    compara en `CellEditEnding` (diferido con `Dispatcher`, porque el enlace se confirma después del
+    evento): abrir una celda y salir sin cambiar nada no propaga. Se usan las marcas de *Sel.* y no
+    solo la selección de la tabla porque un clic simple en una celda deja seleccionada únicamente esa
+    fila. Las marcas se conservan tras propagar para encadenar varios cambios.
+
 15. **Dibujar con puntos sin resolver** pide confirmación (se dibujará el resto; los sin
     resolver se reportan). El botón se deshabilita si no hay ningún punto que vaya a líneas.
 

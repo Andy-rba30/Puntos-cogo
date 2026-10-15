@@ -104,6 +104,59 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
     /// <summary>Texto corto de estado para la columna "Estado" y los filtros.</summary>
     public string Status => Rule.Kind == CodeKind.Ignore ? "ignorar" : !Rule.IsResolved ? "sin resolver" : Rule.Kind == CodeKind.Point ? "punto" : "línea";
 
+    /// <summary>Propiedades que el usuario edita en la tabla y que la edición en bloque copia a las demás filas marcadas.</summary>
+    public static readonly string[] EditableProperties =
+    {
+        nameof(DestinationCode), nameof(KindLabel), nameof(SplitBySide), nameof(LayerBase), nameof(ColorIndex)
+    };
+
+    /// <summary>Valor actual de una propiedad editable (para detectar si una edición cambió algo). null si no es editable.</summary>
+    public object? GetEditableValue(string propertyName) => propertyName switch
+    {
+        nameof(DestinationCode) => DestinationCode,
+        nameof(KindLabel) => KindLabel,
+        nameof(SplitBySide) => SplitBySide,
+        nameof(LayerBase) => LayerBase,
+        nameof(ColorIndex) => ColorIndex,
+        _ => null
+    };
+
+    /// <summary>
+    /// Copia una propiedad editable desde otra fila (edición en bloque). Pasa por el setter, así el código
+    /// destino vuelve a proponer tipo, capa y color igual que si se escribiera a mano.
+    /// Devuelve true si el valor de esta fila cambió.
+    /// </summary>
+    public bool CopyFrom(ClassificationRowViewModel source, string propertyName)
+    {
+        if (ReferenceEquals(source, this))
+            return false;
+        switch (propertyName)
+        {
+            case nameof(DestinationCode):
+                if (DestinationCode == source.DestinationCode) return false;
+                DestinationCode = source.DestinationCode;
+                return true;
+            case nameof(KindLabel):
+                if (KindLabel == source.KindLabel) return false;
+                KindLabel = source.KindLabel;
+                return true;
+            case nameof(SplitBySide):
+                if (SplitBySide == source.SplitBySide) return false;
+                SplitBySide = source.SplitBySide;
+                return true;
+            case nameof(LayerBase):
+                if (LayerBase == source.LayerBase) return false;
+                LayerBase = source.LayerBase;
+                return true;
+            case nameof(ColorIndex):
+                if (ColorIndex == source.ColorIndex) return false;
+                ColorIndex = source.ColorIndex;
+                return true;
+            default:
+                return false;
+        }
+    }
+
     /// <summary>Usa otro catálogo (tras "Agregar al catálogo").</summary>
     public void UpdateCatalog(CodeCatalog catalog) => _catalog = catalog;
 

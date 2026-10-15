@@ -227,6 +227,47 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         StatusMessage = $"{targets.Count} fila(s) unificadas en {code}.";
     }
 
+    /// <summary>
+    /// Edición en bloque: tras editar una propiedad en <paramref name="source"/>, copia el nuevo valor a las demás
+    /// filas marcadas en la columna Sel. o seleccionadas en la tabla (<paramref name="gridSelection"/>).
+    /// Solo actúa si la fila editada forma parte de ese conjunto: editar una fila suelta no toca a las marcadas.
+    /// Devuelve cuántas filas cambiaron.
+    /// </summary>
+    public int PropagateEdit(ClassificationRowViewModel source, string propertyName, IEnumerable<ClassificationRowViewModel>? gridSelection = null)
+    {
+        if (!ClassificationRowViewModel.EditableProperties.Contains(propertyName))
+            return 0;
+
+        var targets = new HashSet<ClassificationRowViewModel>(Rows.Where(r => r.IsSelected));
+        if (gridSelection != null)
+            foreach (var row in gridSelection)
+                targets.Add(row);
+        if (!targets.Contains(source))
+            return 0;
+        targets.Remove(source);
+        if (targets.Count == 0)
+            return 0;
+
+        var changed = 0;
+        foreach (var row in targets)
+            if (row.CopyFrom(source, propertyName))
+                changed++;
+
+        if (changed > 0)
+            StatusMessage = $"{PropertyLabel(propertyName)} de '{source.Original}' aplicado a {changed} fila(s) más de la selección.";
+        return changed;
+    }
+
+    private static string PropertyLabel(string propertyName) => propertyName switch
+    {
+        nameof(ClassificationRowViewModel.DestinationCode) => "Código destino",
+        nameof(ClassificationRowViewModel.KindLabel) => "Tipo",
+        nameof(ClassificationRowViewModel.SplitBySide) => "Por lado",
+        nameof(ClassificationRowViewModel.LayerBase) => "Capa",
+        nameof(ClassificationRowViewModel.ColorIndex) => "Color",
+        _ => propertyName
+    };
+
     /// <summary>Botón "Restablecer": vuelve a la propuesta inicial (catálogo), descartando todos los cambios.</summary>
     public void ResetToInitial()
     {

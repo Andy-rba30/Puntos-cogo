@@ -126,6 +126,10 @@ serie interna (variable `ACADVER`), ajuste el rango.
    - *Por lado*, *Capa* (base; las líneas con lados reciben `-IZQ`/`-DER`), *Color (ACI)*, *Estado*.
    - **Buscar** y **Solo sin resolver** filtran la tabla; las columnas se ordenan al pulsar el encabezado.
    - **Sugerir similares**, **Unificar selección** y **Restablecer** (vuelve a la propuesta del catálogo).
+   - **Edición en bloque**: marque varias filas en la columna *Sel.* (un clic por fila) y edite
+     cualquiera de ellas; el código destino, tipo, lado, capa o color que cambie se copia a todas las
+     marcadas. También funciona con la selección de la tabla (Ctrl+clic y luego `F2` o escribir).
+     Editar una fila que no está marcada no toca a las demás.
    - **Perfil** (`Cargar`, `Guardar`, `Abrir archivo…`): guarda la clasificación en
      `%APPDATA%\PlanimetriaCogo\perfiles\<nombre>.json` para reutilizarla en otros DWG. Al cargar,
      coincide por descripción exacta y, si no, por forma normalizada.

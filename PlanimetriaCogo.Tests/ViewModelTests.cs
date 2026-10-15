@@ -76,6 +76,103 @@ public class ClassificationViewModelTests
     }
 
     [Fact]
+    public void PropagateEdit_CopiesToMarkedRows_WhenSourceIsMarked()
+    {
+        var vm = Build();
+        var cumeta = vm.Rows.Single(r => r.Rule.Original == "cumeta");
+        var cuneta = vm.Rows.Single(r => r.Rule.Original == "CUNETA");
+        var v = vm.Rows.Single(r => r.Rule.Original == "v");
+        var casa = vm.Rows.Single(r => r.Rule.Original == "casa");
+        cumeta.IsSelected = cuneta.IsSelected = v.IsSelected = true;
+
+        // Capa: se copia a las otras dos marcadas, no a las demás.
+        cumeta.LayerBase = "PL-DRENAJE";
+        Assert.Equal(2, vm.PropagateEdit(cumeta, nameof(ClassificationRowViewModel.LayerBase)));
+        Assert.Equal("PL-DRENAJE", cuneta.LayerBase);
+        Assert.Equal("PL-DRENAJE", v.LayerBase);
+        Assert.NotEqual("PL-DRENAJE", casa.LayerBase);
+        Assert.Contains("Capa", vm.StatusMessage);
+
+        // Color y lado.
+        cumeta.ColorIndex = 30;
+        cumeta.SplitBySide = false;
+        Assert.Equal(2, vm.PropagateEdit(cumeta, nameof(ClassificationRowViewModel.ColorIndex)));
+        Assert.Equal(2, vm.PropagateEdit(cumeta, nameof(ClassificationRowViewModel.SplitBySide)));
+        Assert.All(new[] { cuneta, v }, r => { Assert.Equal((short)30, r.ColorIndex); Assert.False(r.SplitBySide); });
+
+        // Tipo: "Ignorar" en una marcada deja fuera a todas las marcadas.
+        cumeta.KindLabel = CodeKind.Ignore.ToSpanish();
+        Assert.Equal(2, vm.PropagateEdit(cumeta, nameof(ClassificationRowViewModel.KindLabel)));
+        Assert.Equal(CodeKind.Ignore, cuneta.Rule.Kind);
+        Assert.Equal(CodeKind.Ignore, v.Rule.Kind);
+        Assert.Equal(5, vm.PointsIgnored); // 3015396 + cumeta×2 + CUNETA + v
+
+        // Las marcas se conservan para seguir editando en bloque.
+        Assert.True(cuneta.IsSelected && v.IsSelected && cumeta.IsSelected);
+    }
+
+    [Fact]
+    public void PropagateEdit_DestinationCode_ReproposesKindAndLayer()
+    {
+        var vm = Build();
+        var cumeta = vm.Rows.Single(r => r.Rule.Original == "cumeta");
+        var zzz = vm.Rows.Single(r => r.Rule.Original == "zzz");
+        cumeta.IsSelected = zzz.IsSelected = true;
+
+        cumeta.DestinationCode = "CASA";
+        Assert.Equal(1, vm.PropagateEdit(cumeta, nameof(ClassificationRowViewModel.DestinationCode)));
+        Assert.Equal("CASA", zzz.DestinationCode);
+        Assert.Equal(CodeKind.Point, zzz.Rule.Kind);
+        Assert.Equal(cumeta.LayerBase, zzz.LayerBase);
+        Assert.Equal(0, vm.PointsUnresolved);
+    }
+
+    [Fact]
+    public void PropagateEdit_IgnoresUnmarkedSource_AndUnknownProperty()
+    {
+        var vm = Build();
+        var cumeta = vm.Rows.Single(r => r.Rule.Original == "cumeta");
+        var cuneta = vm.Rows.Single(r => r.Rule.Original == "CUNETA");
+        var casa = vm.Rows.Single(r => r.Rule.Original == "casa");
+        cumeta.IsSelected = cuneta.IsSelected = true;
+
+        // Editar una fila que no está marcada no toca a las marcadas.
+        casa.LayerBase = "PT-OTRA";
+        Assert.Equal(0, vm.PropagateEdit(casa, nameof(ClassificationRowViewModel.LayerBase)));
+        Assert.NotEqual("PT-OTRA", cumeta.LayerBase);
+
+        // Una sola fila marcada: nada que propagar.
+        cuneta.IsSelected = false;
+        cumeta.LayerBase = "PL-X";
+        Assert.Equal(0, vm.PropagateEdit(cumeta, nameof(ClassificationRowViewModel.LayerBase)));
+
+        // Propiedades no editables (p. ej. la propia marca Sel.) no propagan nada.
+        Assert.Equal(0, vm.PropagateEdit(cumeta, nameof(ClassificationRowViewModel.IsSelected)));
+        Assert.Null(cumeta.GetEditableValue(nameof(ClassificationRowViewModel.IsSelected)));
+    }
+
+    [Fact]
+    public void PropagateEdit_UsesGridSelection_WithoutMarks()
+    {
+        var vm = Build();
+        var cumeta = vm.Rows.Single(r => r.Rule.Original == "cumeta");
+        var cuneta = vm.Rows.Single(r => r.Rule.Original == "CUNETA");
+        var v = vm.Rows.Single(r => r.Rule.Original == "v");
+
+        // Selección de la tabla (Ctrl+clic + F2) sin marcas en Sel.
+        cuneta.ColorIndex = 12;
+        Assert.Equal(2, vm.PropagateEdit(cuneta, nameof(ClassificationRowViewModel.ColorIndex), new[] { cumeta, cuneta, v }));
+        Assert.Equal((short)12, cumeta.ColorIndex);
+        Assert.Equal((short)12, v.ColorIndex);
+
+        // Si la fila editada no forma parte de la selección, no se propaga.
+        var casa = vm.Rows.Single(r => r.Rule.Original == "casa");
+        casa.ColorIndex = 40;
+        Assert.Equal(0, vm.PropagateEdit(casa, nameof(ClassificationRowViewModel.ColorIndex), new[] { cumeta, v }));
+        Assert.Equal((short)12, cumeta.ColorIndex);
+    }
+
+    [Fact]
     public void ResetToInitial_RestoresProposal()
     {
         var vm = Build();

@@ -29,6 +29,8 @@
             dibujo salvo que active las opciones de abajo. Las filas sin código destino no se dibujan y se reportan como
             "sin resolver". La capa de las líneas con lados recibe el sufijo -IZQ / -DER al dibujar. Las marcas de la
             descripción (CUNETA I, CUNETA F, CUNETA2) se resuelven por su código base y se respetan al dibujar.
+            Para cambiar varias filas a la vez: márquelas en la columna Sel. y edite cualquiera de ellas; el código,
+            tipo, lado, capa o color que cambie se aplica a todas las marcadas.
         </TextBlock>
 
         <!-- Barra superior: perfiles, catálogo, filtro -->
@@ -66,7 +68,8 @@
                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                   SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column"
                   RowHeaderWidth="0" GridLinesVisibility="Horizontal" AlternatingRowBackground="#F5F5F5"
-                  CanUserSortColumns="True" EnableRowVirtualization="True">
+                  CanUserSortColumns="True" EnableRowVirtualization="True"
+                  BeginningEdit="RowsGrid_BeginningEdit" CellEditEnding="RowsGrid_CellEditEnding">
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
                     <Style.Triggers>
@@ -80,8 +83,20 @@
                 </Style>
             </DataGrid.RowStyle>
             <DataGrid.Columns>
-                <DataGridCheckBoxColumn Header="Sel." Width="40"
-                                        Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridTemplateColumn Header="Sel." Width="40" SortMemberPath="IsSelected" CanUserResize="False">
+                    <DataGridTemplateColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="ToolTip" Value="Marque varias filas y edite una de ellas: el cambio se aplica a todas las marcadas. También las usa Unificar selección." />
+                        </Style>
+                    </DataGridTemplateColumn.HeaderStyle>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <!-- CheckBox directo (sin modo edición): se marca con un solo clic -->
+                            <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Descripción original" Width="170" IsReadOnly="True"
                                     Binding="{Binding Original}" SortMemberPath="Original" />
                 <DataGridTextColumn Header="Cantidad" Width="70" IsReadOnly="True"
@@ -130,10 +145,10 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
-                <DataGridCheckBoxColumn Header="Por lado" Width="65"
+                <DataGridCheckBoxColumn Header="Por lado" Width="65" SortMemberPath="SplitBySide"
                                         Binding="{Binding SplitBySide, UpdateSourceTrigger=PropertyChanged}" />
                 <DataGridTextColumn Header="Capa" Width="*" Binding="{Binding LayerBase, UpdateSourceTrigger=LostFocus}" SortMemberPath="LayerBase" />
-                <DataGridTextColumn Header="Color (ACI)" Width="80" Binding="{Binding ColorIndex, UpdateSourceTrigger=LostFocus}" />
+                <DataGridTextColumn Header="Color (ACI)" Width="80" Binding="{Binding ColorIndex, UpdateSourceTrigger=LostFocus}" SortMemberPath="ColorIndex" />
                 <DataGridTextColumn Header="Estado" Width="90" IsReadOnly="True" Binding="{Binding Status}" SortMemberPath="Status" />
             </DataGrid.Columns>
         </DataGrid>

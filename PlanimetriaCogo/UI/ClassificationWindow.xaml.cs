@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using Microsoft.Win32;
 
 namespace PlanimetriaCogo.UI;
@@ -9,6 +10,11 @@ namespace PlanimetriaCogo.UI;
 public partial class ClassificationWindow : Window
 {
     private readonly ClassificationViewModel _viewModel;
+
+    // Edición en bloque: fila, propiedad y valor previo de la celda que se está editando.
+    private ClassificationRowViewModel? _editingRow;
+    private string? _editingProperty;
+    private object? _editingOldValue;
 
     public ClassificationWindow(ClassificationViewModel viewModel)
     {
@@ -140,6 +146,44 @@ public partial class ClassificationWindow : Window
     {
         DialogResult = false;
         Close();
+    }
+
+    // ---- Edición en bloque ----
+    // Si hay varias filas marcadas en Sel. (o seleccionadas en la tabla) y se edita una de ellas, el cambio se
+    // copia a las demás. Se guarda el valor previo al empezar y se compara al confirmar, así una edición que no
+    // cambió nada (abrir la celda y salir) no toca al resto.
+
+    private void RowsGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+    {
+        _editingRow = e.Row.Item as ClassificationRowViewModel;
+        _editingProperty = e.Column.SortMemberPath;
+        _editingOldValue = _editingRow != null && !string.IsNullOrEmpty(_editingProperty)
+            ? _editingRow.GetEditableValue(_editingProperty)
+            : null;
+    }
+
+    private void RowsGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    {
+        var row = _editingRow;
+        var property = _editingProperty;
+        var oldValue = _editingOldValue;
+        _editingRow = null;
+        _editingProperty = null;
+        _editingOldValue = null;
+
+        if (e.EditAction != DataGridEditAction.Commit || row == null || string.IsNullOrEmpty(property))
+            return;
+        if (!ReferenceEquals(e.Row.Item, row))
+            return;
+
+        // El enlace de la celda se confirma después de este evento: propagar cuando el nuevo valor ya esté en la fila.
+        var selection = RowsGrid.SelectedItems.OfType<ClassificationRowViewModel>().ToList();
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (Equals(row.GetEditableValue(property), oldValue))
+                return;
+            _viewModel.PropagateEdit(row, property, selection);
+        }, DispatcherPriority.Background);
     }
 
     /// <summary>Confirma la celda en edición para que el valor llegue al view-model antes de actuar.</summary>

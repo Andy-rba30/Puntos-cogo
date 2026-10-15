@@ -8,7 +8,7 @@ namespace PlanimetriaCogo.Tests;
 public class LineGrouperTests
 {
     private static ResolvedPoint R(uint n, string code, Side side, string id = "") =>
-        new(new SurveyPoint { Number = n, SourceId = id }, code, side, new Projection(n, side == Side.Left ? -1 : 1, 0));
+        new(new SurveyPoint { Number = n, SourceId = id }, code, side, new Projection(n, side == Side.Left ? -1 : 1, 0), DescriptionParser.None.Parse(code));
 
     [Fact]
     public void Group_ByCodeAndSide_OrderedByNumber()

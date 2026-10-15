@@ -7,15 +7,19 @@ namespace PlanimetriaCogo.Core;
 
 /// <summary>
 /// Orquesta el cálculo completo sin tocar AutoCAD:
-/// clasificar por reglas → proyectar con continuidad → lado → agrupar (código, lado) → cortar → secuencias.
+/// clasificar por reglas → descomponer descripción (marcas, serie) → proyectar con continuidad → lado
+/// (el explícito prevalece) → agrupar (código, lado[, serie]) → ordenar → cortar → secuencias.
+/// También prepara los objetos puntuales y los cambios de descripción para las opciones del dibujo.
 /// </summary>
 public sealed class PlanimetryEngine
 {
     private readonly Settings _settings;
+    private readonly DescriptionParser _parser;
 
     public PlanimetryEngine(Settings settings)
     {
         _settings = settings;
+        _parser = new DescriptionParser(settings);
     }
 
     public PlanimetryResult Run(IEnumerable<SurveyPoint> points, IEnumerable<CodeRule> rules, IAxis axis)
@@ -25,8 +29,8 @@ public sealed class PlanimetryEngine
         foreach (var rule in rules)
             ruleByOriginal[rule.Original] = rule;
 
-        // 1. Clasificación por regla: líneas por código destino; el resto solo se cuenta.
-        var lineCandidates = new Dictionary<string, List<SurveyPoint>>(StringComparer.Ordinal);
+        // 1. Clasificación por regla: líneas por código destino; puntos y descartes solo se registran.
+        var lineCandidates = new Dictionary<string, List<(SurveyPoint Point, ParsedDescription Parsed)>>(StringComparer.Ordinal);
         var ruleByCode = new Dictionary<string, CodeRule>(StringComparer.Ordinal);
 
         foreach (var point in points)
@@ -45,18 +49,26 @@ public sealed class PlanimetryEngine
                 Increment(result.UnresolvedCodes, raw);
                 continue;
             }
+
+            var parsed = _parser.Parse(raw);
+            var newDescription = DescriptionParser.Rebuild(parsed, rule.DestinationCode);
+            if (!string.Equals(newDescription, raw, StringComparison.Ordinal))
+                result.DescriptionChanges.Add(new DescriptionChange(point, newDescription));
+
             if (rule.Kind == CodeKind.Point)
             {
                 Increment(result.PointObjectCodes, rule.DestinationCode);
+                var pointLayer = string.IsNullOrWhiteSpace(rule.LayerBase) ? LayerNames.ProposeBase(rule, _settings) : LayerNames.Sanitize(rule.LayerBase);
+                result.PointObjects.Add(new PointObject(point, rule.DestinationCode, pointLayer, rule.ColorIndex));
                 continue;
             }
 
             if (!lineCandidates.TryGetValue(rule.DestinationCode, out var list))
             {
-                list = new List<SurveyPoint>();
+                list = new List<(SurveyPoint, ParsedDescription)>();
                 lineCandidates[rule.DestinationCode] = list;
             }
-            list.Add(point);
+            list.Add((point, parsed));
 
             // Si varias descripciones van al mismo código con capa/color distintos, manda la de más puntos.
             if (!ruleByCode.TryGetValue(rule.DestinationCode, out var existing) || rule.Count > existing.Count)
@@ -70,12 +82,12 @@ public sealed class PlanimetryEngine
         foreach (var (code, list) in lineCandidates.OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
             var rule = ruleByCode[code];
-            var ordered = list.OrderBy(p => p.Number).ThenBy(p => p.SourceId, StringComparer.Ordinal).ToList();
-            var resolutions = resolver.Resolve(ordered);
+            var ordered = list.OrderBy(p => p.Point.Number).ThenBy(p => p.Point.SourceId, StringComparer.Ordinal).ToList();
+            var resolutions = resolver.Resolve(ordered.Select(p => p.Point).ToList());
 
             for (var i = 0; i < ordered.Count; i++)
             {
-                var point = ordered[i];
+                var (point, parsed) = ordered[i];
                 var resolution = resolutions[i];
 
                 if (!resolution.Ok)
@@ -87,35 +99,52 @@ public sealed class PlanimetryEngine
                 }
 
                 var projection = resolution.Chosen!.Value;
-                var side = SideClassifier.Classify(projection.Offset, _settings.AxisTolerance);
+                var side = Side.Center;
 
-                if (rule.SplitBySide && side == Side.Center)
+                if (rule.SplitBySide)
                 {
-                    result.Discarded.Add(new DiscardedPoint(point, code, DiscardReason.OnAxis, $"|offset| {projection.Distance:0.000} m < tolEje {_settings.AxisTolerance:0.000} m"));
-                    continue;
+                    var computed = SideClassifier.Classify(projection.Offset, _settings.AxisTolerance);
+                    var explicitSide = _settings.UseDescriptionMarks ? parsed.ExplicitSide : null;
+
+                    if (explicitSide.HasValue)
+                    {
+                        // El lado escrito en campo prevalece (§3.2); se reporta si no coincide con el calculado.
+                        if (computed != Side.Center && computed != explicitSide.Value)
+                            result.SideDiscrepancies.Add(new SideDiscrepancy(point, code, explicitSide.Value, computed, projection.Offset));
+                        side = explicitSide.Value;
+                    }
+                    else if (computed == Side.Center)
+                    {
+                        result.Discarded.Add(new DiscardedPoint(point, code, DiscardReason.OnAxis, $"|offset| {projection.Distance:0.000} m < tolEje {_settings.AxisTolerance:0.000} m"));
+                        continue;
+                    }
+                    else
+                    {
+                        side = computed;
+                    }
                 }
 
-                resolved.Add(new ResolvedPoint(point, code, rule.SplitBySide ? side : Side.Center, projection));
+                resolved.Add(new ResolvedPoint(point, code, side, projection, parsed));
             }
         }
 
-        // 3. Agrupar, cortar y armar secuencias dibujables.
-        foreach (var group in LineGrouper.Group(resolved))
+        // 3. Agrupar, ordenar, cortar y armar secuencias dibujables.
+        foreach (var group in LineGrouper.Group(resolved, _settings.Order, _settings.SplitSeries))
         {
             var rule = ruleByCode[group.Code];
             // Si el usuario dejó la capa vacía, se usa la propuesta por defecto.
             var layerBase = string.IsNullOrWhiteSpace(rule.LayerBase) ? LayerNames.ProposeBase(rule, _settings) : rule.LayerBase;
             var layer = LayerNames.ForLine(layerBase, group.Side, rule.SplitBySide, _settings);
 
-            foreach (var sequence in BreakRules.Split(group, _settings.DistMax, result.Cuts))
+            foreach (var sequence in BreakRules.Split(group, _settings, result.Cuts))
             {
                 if (sequence.Count < 2)
                 {
                     foreach (var alone in sequence)
-                        result.Discarded.Add(new DiscardedPoint(alone.Point, group.Code, DiscardReason.Alone, $"único punto de {group.Code} {group.Side.ToSpanish()}"));
+                        result.Discarded.Add(new DiscardedPoint(alone.Point, group.Code, DiscardReason.Alone, $"único punto de {group.Label}"));
                     continue;
                 }
-                result.Lines.Add(new LineSequence(group.Code, group.Side, layer, rule.ColorIndex, sequence));
+                result.Lines.Add(new LineSequence(group.Code, group.Side, group.Series, layer, rule.ColorIndex, sequence));
             }
         }
 

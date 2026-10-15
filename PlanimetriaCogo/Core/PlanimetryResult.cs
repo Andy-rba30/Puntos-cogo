@@ -21,13 +21,23 @@ public enum DiscardReason
 
 public sealed record DiscardedPoint(SurveyPoint Point, string Code, DiscardReason Reason, string Detail);
 
+/// <summary>El lado escrito en la descripción ("CUNETA I") no coincide con el calculado por el offset (§3.2).</summary>
+public sealed record SideDiscrepancy(SurveyPoint Point, string Code, Side Explicit, Side Computed, double Offset);
+
+/// <summary>Objeto puntual clasificado (tipo Punto) con la capa a la que iría si se activa "mover a capa".</summary>
+public sealed record PointObject(SurveyPoint Point, string Code, string Layer, short ColorIndex);
+
+/// <summary>Cambio de descripción propuesto para la opción "actualizar descripciones en el dibujo".</summary>
+public sealed record DescriptionChange(SurveyPoint Point, string NewDescription);
+
 /// <summary>Secuencia lista para dibujar como una Polyline3d.</summary>
 public sealed class LineSequence
 {
-    public LineSequence(string code, Side side, string layer, short colorIndex, IReadOnlyList<ResolvedPoint> points)
+    public LineSequence(string code, Side side, int? series, string layer, short colorIndex, IReadOnlyList<ResolvedPoint> points)
     {
         Code = code;
         Side = side;
+        Series = series;
         Layer = layer;
         ColorIndex = colorIndex;
         Points = points;
@@ -35,17 +45,28 @@ public sealed class LineSequence
 
     public string Code { get; }
     public Side Side { get; }
+    public int? Series { get; }
     public string Layer { get; }
     public short ColorIndex { get; }
     public IReadOnlyList<ResolvedPoint> Points { get; }
+
+    public uint FirstNumber => Points[0].Point.Number;
+    public uint LastNumber => Points[Points.Count - 1].Point.Number;
 }
 
-/// <summary>Resultado completo del procesamiento, base del reporte en la línea de comandos.</summary>
+/// <summary>Resultado completo del procesamiento, base del reporte en la línea de comandos y en archivo.</summary>
 public sealed class PlanimetryResult
 {
     public List<LineSequence> Lines { get; } = new();
     public List<DiscardedPoint> Discarded { get; } = new();
     public List<LineCut> Cuts { get; } = new();
+    public List<SideDiscrepancy> SideDiscrepancies { get; } = new();
+
+    /// <summary>Objetos puntuales, uno por punto (para contarlos y, si se activa, moverlos de capa).</summary>
+    public List<PointObject> PointObjects { get; } = new();
+
+    /// <summary>Descripciones que cambiarían con "actualizar descripciones en el dibujo" (solo las distintas a la actual).</summary>
+    public List<DescriptionChange> DescriptionChanges { get; } = new();
 
     /// <summary>Descripción original → cantidad, para filas de tipo Ignorar.</summary>
     public Dictionary<string, int> IgnoredCodes { get; } = new();
@@ -53,10 +74,13 @@ public sealed class PlanimetryResult
     /// <summary>Descripción original → cantidad, para filas sin código destino.</summary>
     public Dictionary<string, int> UnresolvedCodes { get; } = new();
 
-    /// <summary>Código destino → cantidad, para objetos puntuales (solo se cuentan en la fase 1).</summary>
+    /// <summary>Código destino → cantidad, para objetos puntuales.</summary>
     public Dictionary<string, int> PointObjectCodes { get; } = new();
 
     public int TotalPoints { get; set; }
+
+    /// <summary>Descripción del eje usado (nombre del alineamiento, polilínea o "N puntos EJE") para el reporte.</summary>
+    public string AxisDescription { get; set; } = "";
 
     public int PointsInLines
     {

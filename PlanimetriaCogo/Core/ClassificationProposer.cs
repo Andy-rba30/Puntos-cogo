@@ -15,13 +15,15 @@ public static class ClassificationProposer
     public static List<CodeRule> BuildRules(IEnumerable<SurveyPoint> points, CodeCatalog catalog, Settings settings)
     {
         var rules = new List<CodeRule>();
+        var parser = new DescriptionParser(settings);
         foreach (var group in points
                      .GroupBy(p => p.RawDescription ?? "", StringComparer.Ordinal)
                      .OrderByDescending(g => g.Count())
                      .ThenBy(g => g.Key, StringComparer.Ordinal))
         {
             var rule = new CodeRule { Original = group.Key, Count = group.Count() };
-            var norm = DescriptionNormalizer.Normalize(group.Key);
+            // Se resuelve por el código base: "cuneta f" → CUNETA (la marca F la conserva el motor).
+            var norm = parser.Parse(group.Key).BaseCode;
 
             if (DescriptionNormalizer.IsEmptyOrNumeric(norm))
             {

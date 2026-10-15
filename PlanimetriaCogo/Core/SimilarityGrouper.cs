@@ -28,6 +28,12 @@ public sealed class SimilarityGrouper
 {
     public int MaxEditDistance { get; init; } = 2;
 
+    /// <summary>
+    /// Parser para comparar por código base ("cuneta f" se agrupa como "cuneta"). Por defecto no se
+    /// interpretan marcas; el comando pasa el parser construido con la configuración.
+    /// </summary>
+    public DescriptionParser Parser { get; init; } = DescriptionParser.None;
+
     private sealed class NormEntry
     {
         public string Norm = "";
@@ -43,7 +49,7 @@ public sealed class SimilarityGrouper
         var byNorm = new Dictionary<string, NormEntry>(StringComparer.Ordinal);
         foreach (var (description, count) in entries)
         {
-            var norm = DescriptionNormalizer.Normalize(description);
+            var norm = Parser.Parse(description).BaseCode;
             if (DescriptionNormalizer.IsEmptyOrNumeric(norm))
                 continue; // vacías y numéricas no se sugieren: van a Ignorar
             if (!byNorm.TryGetValue(norm, out var entry))

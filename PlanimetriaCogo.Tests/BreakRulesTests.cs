@@ -9,12 +9,12 @@ namespace PlanimetriaCogo.Tests;
 public class BreakRulesTests
 {
     private static ResolvedPoint R(uint n, double x) =>
-        new(new SurveyPoint { Number = n, X = x, Y = 0 }, "TN", Side.Left, new Projection(x, -1, 0));
+        new(new SurveyPoint { Number = n, X = x, Y = 0 }, "TN", Side.Left, new Projection(x, -1, 0), DescriptionParser.None.Parse("TN"));
 
     [Fact]
     public void Split_CutsWhenDistanceExceedsDistMax()
     {
-        var group = new LineGroup("TN", Side.Left, new[] { R(1, 0), R(2, 10), R(3, 50), R(4, 60) });
+        var group = new LineGroup("TN", Side.Left, null, new[] { R(1, 0), R(2, 10), R(3, 50), R(4, 60) });
         var cuts = new List<LineCut>();
 
         var sequences = BreakRules.Split(group, 30, cuts);
@@ -30,7 +30,7 @@ public class BreakRulesTests
     [Fact]
     public void Split_DistMaxZero_NeverCuts()
     {
-        var group = new LineGroup("TN", Side.Left, new[] { R(1, 0), R(2, 500) });
+        var group = new LineGroup("TN", Side.Left, null, new[] { R(1, 0), R(2, 500) });
         var cuts = new List<LineCut>();
         Assert.Single(BreakRules.Split(group, 0, cuts));
         Assert.Empty(cuts);

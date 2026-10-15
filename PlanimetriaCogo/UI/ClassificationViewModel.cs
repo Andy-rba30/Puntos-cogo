@@ -70,7 +70,7 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
     public void SuggestSimilar()
     {
         var entries = Rows.Select(r => (r.Rule.Original, r.Rule.Count));
-        var groups = new SimilarityGrouper().Suggest(entries, _catalog);
+        var groups = new SimilarityGrouper { Parser = new DescriptionParser(_settings) }.Suggest(entries, _catalog);
         var map = SimilarityGrouper.ToMap(groups);
 
         var changed = 0;

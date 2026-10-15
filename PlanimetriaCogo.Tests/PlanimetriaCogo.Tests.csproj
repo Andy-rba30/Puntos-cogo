@@ -19,6 +19,7 @@
     <Compile Include="..\PlanimetriaCogo\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\PlanimetriaCogo\Models\**\*.cs" Link="Models\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\PlanimetriaCogo\Config\**\*.cs" Link="Config\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\PlanimetriaCogo\UI\*ViewModel.cs" Link="UI\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

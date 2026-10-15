@@ -2,41 +2,97 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Planimetría: clasificación de descripciones"
-        Width="980" Height="620" MinWidth="760" MinHeight="420"
+        Width="1080" Height="700" MinWidth="820" MinHeight="480"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <Style TargetType="Button" x:Key="ToolButton">
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+    </Window.Resources>
+
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- Explicación -->
         <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8">
-            Revise a qué código destino va cada descripción encontrada en los puntos. Nada se modifica en el dibujo:
-            el mapa es interno. Las filas sin código destino no se dibujan y se reportan como "sin resolver".
-            La capa de las líneas con lados recibe el sufijo -IZQ / -DER al dibujar.
+            Revise a qué código destino va cada descripción encontrada en los puntos. El mapa es interno: nada cambia en el
+            dibujo salvo que active las opciones de abajo. Las filas sin código destino no se dibujan y se reportan como
+            "sin resolver". La capa de las líneas con lados recibe el sufijo -IZQ / -DER al dibujar. Las marcas de la
+            descripción (CUNETA I, CUNETA F, CUNETA2) se resuelven por su código base y se respetan al dibujar.
         </TextBlock>
 
-        <DataGrid Grid.Row="1" x:Name="RowsGrid" ItemsSource="{Binding Rows}"
+        <!-- Barra superior: perfiles, catálogo, filtro -->
+        <DockPanel Grid.Row="1" Margin="0,0,0,6" LastChildFill="True">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal"
+                        Visibility="{Binding HasProfiles, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="Perfil:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                <ComboBox x:Name="ProfileCombo" Width="170" IsEditable="True" ItemsSource="{Binding ProfileNames}"
+                          ToolTip="Nombre del perfil a cargar o guardar (se guarda en %APPDATA%\PlanimetriaCogo\perfiles)" />
+                <Button Content="Cargar" Style="{StaticResource ToolButton}" Margin="4,0,0,0" Click="LoadProfileButton_Click"
+                        ToolTip="Aplica el perfil elegido a las filas actuales" />
+                <Button Content="Guardar" Style="{StaticResource ToolButton}" Margin="4,0,0,0" Click="SaveProfileButton_Click"
+                        ToolTip="Guarda la clasificación actual con el nombre indicado" />
+                <Button Content="Abrir archivo…" Style="{StaticResource ToolButton}" Margin="4,0,0,0" Click="LoadProfileFileButton_Click"
+                        ToolTip="Carga un perfil desde cualquier carpeta" />
+            </StackPanel>
+            <Button DockPanel.Dock="Left" Content="Agregar al catálogo" Style="{StaticResource ToolButton}" Margin="12,0,0,0"
+                    Visibility="{Binding HasCatalogStore, Converter={StaticResource BoolToVisibility}}"
+                    Click="AddToCatalogButton_Click"
+                    ToolTip="Guarda en catalogo.json los códigos nuevos y las descripciones originales como alias, para que se reconozcan solos la próxima vez" />
+            <Button DockPanel.Dock="Right" Content="Parámetros…" Style="{StaticResource ToolButton}" Margin="8,0,0,0" Click="SettingsButton_Click"
+                    ToolTip="{Binding SettingsSummary}" />
+            <CheckBox DockPanel.Dock="Right" Content="Solo sin resolver" VerticalAlignment="Center" Margin="8,0,0,0"
+                      IsChecked="{Binding ShowOnlyUnresolved}" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding VisibleCountText}" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="#555555" />
+            <TextBox DockPanel.Dock="Right" Width="180" Margin="12,0,0,0" VerticalContentAlignment="Center"
+                     Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Filtra por descripción, código destino, capa o estado (línea, punto, ignorar, sin resolver)" />
+            <TextBlock DockPanel.Dock="Right" Text="Buscar:" VerticalAlignment="Center" Margin="12,0,0,0" />
+            <Border />
+        </DockPanel>
+
+        <!-- Tabla -->
+        <DataGrid Grid.Row="2" x:Name="RowsGrid" ItemsSource="{Binding VisibleRows}"
                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                   SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column"
-                  RowHeaderWidth="0" GridLinesVisibility="Horizontal" AlternatingRowBackground="#F5F5F5">
+                  RowHeaderWidth="0" GridLinesVisibility="Horizontal" AlternatingRowBackground="#F5F5F5"
+                  CanUserSortColumns="True" EnableRowVirtualization="True">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Status}" Value="sin resolver">
+                            <Setter Property="Background" Value="#FFF4E5" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Status}" Value="ignorar">
+                            <Setter Property="Foreground" Value="#888888" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridCheckBoxColumn Header="Sel." Width="40"
                                         Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" />
-                <DataGridTextColumn Header="Descripción original" Width="160" IsReadOnly="True"
-                                    Binding="{Binding Original}" />
+                <DataGridTextColumn Header="Descripción original" Width="170" IsReadOnly="True"
+                                    Binding="{Binding Original}" SortMemberPath="Original" />
                 <DataGridTextColumn Header="Cantidad" Width="70" IsReadOnly="True"
-                                    Binding="{Binding Count}">
+                                    Binding="{Binding Count}" SortMemberPath="Count">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right" />
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTemplateColumn Header="Código destino" Width="160">
+                <DataGridTemplateColumn Header="Código destino" Width="160" SortMemberPath="DestinationCode">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding DestinationCode}" Margin="4,0">
@@ -61,7 +117,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Tipo" Width="90">
+                <DataGridTemplateColumn Header="Tipo" Width="90" SortMemberPath="KindLabel">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding KindLabel}" Margin="4,0" />
@@ -76,33 +132,59 @@
                 </DataGridTemplateColumn>
                 <DataGridCheckBoxColumn Header="Por lado" Width="65"
                                         Binding="{Binding SplitBySide, UpdateSourceTrigger=PropertyChanged}" />
-                <DataGridTextColumn Header="Capa" Width="*" Binding="{Binding LayerBase, UpdateSourceTrigger=LostFocus}" />
+                <DataGridTextColumn Header="Capa" Width="*" Binding="{Binding LayerBase, UpdateSourceTrigger=LostFocus}" SortMemberPath="LayerBase" />
                 <DataGridTextColumn Header="Color (ACI)" Width="80" Binding="{Binding ColorIndex, UpdateSourceTrigger=LostFocus}" />
+                <DataGridTextColumn Header="Estado" Width="90" IsReadOnly="True" Binding="{Binding Status}" SortMemberPath="Status" />
             </DataGrid.Columns>
         </DataGrid>
 
-        <DockPanel Grid.Row="2" Margin="0,8,0,0" LastChildFill="False">
-            <Button DockPanel.Dock="Left" Content="Sugerir similares" Padding="10,4" Margin="0,0,8,0"
+        <!-- Herramientas de la tabla -->
+        <DockPanel Grid.Row="3" Margin="0,8,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Left" Content="Sugerir similares" Style="{StaticResource ToolButton}"
                     ToolTip="Agrupa descripciones parecidas (mayúsculas, errores de tipeo, prefijos) y propone un código destino común"
                     Click="SuggestButton_Click" />
             <TextBlock DockPanel.Dock="Left" Text="Código:" VerticalAlignment="Center" Margin="12,0,4,0" />
             <ComboBox DockPanel.Dock="Left" Width="140" IsEditable="True"
                       ItemsSource="{Binding AvailableCodes}"
                       Text="{Binding UnifyCode, UpdateSourceTrigger=PropertyChanged}" />
-            <Button DockPanel.Dock="Left" Content="Unificar selección" Padding="10,4" Margin="8,0,0,0"
+            <Button DockPanel.Dock="Left" Content="Unificar selección" Style="{StaticResource ToolButton}" Margin="8,0,0,0"
                     ToolTip="Asigna el código indicado a las filas marcadas en la columna Sel. (o a las filas seleccionadas en la tabla)"
                     Click="UnifyButton_Click" />
+            <Button DockPanel.Dock="Right" Content="Restablecer" Style="{StaticResource ToolButton}" Margin="8,0,0,0"
+                    ToolTip="Vuelve a la propuesta inicial del catálogo, descartando todos los cambios de la tabla"
+                    Click="ResetButton_Click" />
         </DockPanel>
 
-        <StackPanel Grid.Row="3" Margin="0,8,0,0">
+        <!-- Opciones de dibujo -->
+        <GroupBox Grid.Row="4" Header="Al dibujar" Margin="0,8,0,0" Padding="8,2">
+            <WrapPanel>
+                <CheckBox Margin="0,2,16,2" IsChecked="{Binding UpdateDescriptionsInDrawing}"
+                          Content="Actualizar descripciones en el dibujo"
+                          ToolTip="Reescribe la descripción cruda de cada punto resuelto con su código destino, conservando marcas y series (cumeta f → CUNETA F)" />
+                <CheckBox Margin="0,2,16,2" IsChecked="{Binding MovePointObjectsToLayer}"
+                          Content="Mover objetos puntuales a su capa"
+                          ToolTip="Los puntos de tipo Punto pasan a la capa indicada en su fila (PT-CASA…). Nunca se unen." />
+                <CheckBox Margin="0,2,16,2" IsChecked="{Binding ReportToFile}"
+                          Content="Guardar reporte en archivo (.txt y .csv)" />
+                <CheckBox Margin="0,2,16,2" IsChecked="{Binding KeepGeneratedAxis}"
+                          Visibility="{Binding AxisFromPoints, Converter={StaticResource BoolToVisibility}}"
+                          Content="Conservar el eje generado desde puntos (Polyline3d)" />
+            </WrapPanel>
+        </GroupBox>
+
+        <!-- Contador y estado -->
+        <StackPanel Grid.Row="5" Margin="0,8,0,0">
             <TextBlock FontWeight="Bold" Text="{Binding Summary}" />
+            <TextBlock Margin="0,2,0,0" Foreground="#777777" FontSize="11" Text="{Binding SettingsSummary}" />
             <TextBlock Margin="0,4,0,0" Foreground="#555555" Text="{Binding StatusMessage}" TextWrapping="Wrap" />
         </StackPanel>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button Content="Dibujar" Width="110" Padding="0,5" Margin="0,0,8,0" IsDefault="True"
+        <!-- Botones finales -->
+        <DockPanel Grid.Row="6" Margin="0,12,0,0" LastChildFill="False">
+            <TextBlock DockPanel.Dock="Left" Foreground="#B00020" VerticalAlignment="Center" Text="{Binding CannotDrawReason}" />
+            <Button DockPanel.Dock="Right" Content="Cancelar" Width="110" Padding="0,5" IsCancel="True" Click="CancelButton_Click" />
+            <Button DockPanel.Dock="Right" Content="Dibujar" Width="110" Padding="0,5" Margin="0,0,8,0" IsDefault="True"
                     IsEnabled="{Binding CanDraw}" Click="DrawButton_Click" />
-            <Button Content="Cancelar" Width="110" Padding="0,5" IsCancel="True" Click="CancelButton_Click" />
-        </StackPanel>
+        </DockPanel>
     </Grid>
 </Window>

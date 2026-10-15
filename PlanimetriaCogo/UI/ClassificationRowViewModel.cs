@@ -8,7 +8,7 @@ namespace PlanimetriaCogo.UI;
 /// <summary>Fila de la tabla de clasificación. Envuelve una <see cref="CodeRule"/> con notificación de cambios.</summary>
 public sealed class ClassificationRowViewModel : INotifyPropertyChanged
 {
-    private readonly CodeCatalog _catalog;
+    private CodeCatalog _catalog;
     private readonly Settings _settings;
     private bool _isSelected;
 
@@ -44,12 +44,7 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
             if (normalized == Rule.DestinationCode)
                 return;
             ClassificationProposer.ApplyDestination(Rule, normalized, _catalog, _settings);
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(KindLabel));
-            OnPropertyChanged(nameof(SplitBySide));
-            OnPropertyChanged(nameof(LayerBase));
-            OnPropertyChanged(nameof(ColorIndex));
-            OnPropertyChanged(nameof(IsResolved));
+            RaiseAll();
         }
     }
 
@@ -66,6 +61,7 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
             Rule.LayerBase = LayerNames.ProposeBase(Rule, _settings);
             OnPropertyChanged();
             OnPropertyChanged(nameof(LayerBase));
+            OnPropertyChanged(nameof(IsLine));
         }
     }
 
@@ -102,6 +98,27 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
     }
 
     public bool IsResolved => Rule.IsResolved;
+
+    public bool IsLine => Rule.Kind == CodeKind.Line;
+
+    /// <summary>Texto corto de estado para la columna "Estado" y los filtros.</summary>
+    public string Status => Rule.Kind == CodeKind.Ignore ? "ignorar" : !Rule.IsResolved ? "sin resolver" : Rule.Kind == CodeKind.Point ? "punto" : "línea";
+
+    /// <summary>Usa otro catálogo (tras "Agregar al catálogo").</summary>
+    public void UpdateCatalog(CodeCatalog catalog) => _catalog = catalog;
+
+    /// <summary>Notifica todas las propiedades (tras cargar un perfil o restablecer, que cambian la regla por fuera).</summary>
+    public void RaiseAll()
+    {
+        OnPropertyChanged(nameof(DestinationCode));
+        OnPropertyChanged(nameof(KindLabel));
+        OnPropertyChanged(nameof(SplitBySide));
+        OnPropertyChanged(nameof(LayerBase));
+        OnPropertyChanged(nameof(ColorIndex));
+        OnPropertyChanged(nameof(IsResolved));
+        OnPropertyChanged(nameof(IsLine));
+        OnPropertyChanged(nameof(Status));
+    }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

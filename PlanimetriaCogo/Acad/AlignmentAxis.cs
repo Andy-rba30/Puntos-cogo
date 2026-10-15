@@ -30,7 +30,7 @@ public sealed class AlignmentAxis : IAxis
         _alignment = alignment ?? throw new ArgumentNullException(nameof(alignment));
         _step = settings.AxisSampleStep > 0 ? settings.AxisSampleStep : 1.0;
         // Radio mayor que offsetMax para poder distinguir "fuera de offsetMax" de "no proyecta".
-        _searchRadius = Math.Max(settings.OffsetMax * 2.0, settings.OffsetMax + 50.0);
+        _searchRadius = AxisBuilder.SearchRadius(settings);
         _sampled = new SampledPolylineAxis(Sample(alignment, _step), _searchRadius);
     }
 

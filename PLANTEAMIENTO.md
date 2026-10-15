@@ -209,3 +209,77 @@ Todo dentro de una sola transacción, con `Undo` de un solo paso.
 | 2    | Tabla de códigos en JSON, reglas de corte, descripción con lado/marcas, salida 3D y feature line. |
 | 3    | Soporte de `Polyline` como eje, modo "continuidad" para curvas de vuelta, reporte a archivo. |
 | 4    | Interfaz WPF (paleta) para configurar códigos y tolerancias, pruebas unitarias del núcleo, bundle de autocarga. |
+
+---
+
+## 9. Decisiones tomadas tras revisar el LandXML del proyecto
+
+Archivo revisado: `PROCESAMIENTO DISEÑO GEOMETRICO.xml` (LandXML 1.2, UTM 17S, Civil 3D 2027).
+Contiene 17 014 `CgPoint` y **ningún `Alignment`**: el eje vive solo en el DWG.
+
+### 9.1 Lo que muestran los datos
+
+| Hallazgo | Implicación para el plugin |
+|----------|---------------------------|
+| Códigos con mayúsculas/minúsculas mezcladas (`tn` 6725, `TN` 1287) | Comparación sin distinguir mayúsculas. |
+| Errores de tipeo frecuentes: `cumeta`, `cuenta`, `cunet`, `cunetq`, `cunera`, `vunet`, `vuneta`, `cunetw`, `cumet` | Tabla de **alias** por código + corrección difusa (distancia de edición ≤ 2) con reporte. |
+| Abreviaturas: `v`/`ver`/`VRD` (vereda), `b`/`BRD` (borde), `e`/`EJE` (eje), `crr`/`CRC` (carretera), `CNT` (cuneta) | Mismo mecanismo de alias. |
+| Códigos de **objeto puntual**: `casa`, `Pt`, `Q`, `PilonA`, `Muro`, `BM`, `PG`, `BZ`, `agua`, `ALC`, `tubo`, `SH`, `GP`, `LOSA` | Tipo `Punto` en la tabla: no se unen, solo se les asigna capa (o se ignoran). |
+| 126 puntos sin código y 22 puntos de control con código numérico (`3015396`…) | Se descartan y se listan en el reporte. |
+| Patrón de sección `v, e, v` repetido (1150 puntos `e`) | `e` = eje de calzada. Permite **construir el eje desde los puntos** si no hay alineamiento. |
+| Vía de ~16 km con desnivel de 338 a 1444 m y muchas curvas de vuelta | El modo "continuidad" (§3.3) pasa a ser necesario desde la fase 1, no opcional. |
+
+### 9.2 Respuestas a las dudas de la sección 7
+
+1. **Eje de referencia: `Alignment` de Civil 3D (recomendado).** Es la entidad que ya sabe
+   calcular progresiva y offset con signo, igual que el comando de desfase del programa.
+   Se mantienen dos alternativas en el plugin:
+   - `Polyline` seleccionada en pantalla.
+   - **Generar el eje desde los puntos `e`/`EJE`** ordenados por número, como polilínea
+     3D, y opcionalmente convertirlo en `Alignment`. Útil porque el XML ya trae ese dato.
+
+2. **Salida: `Polyline3d` por descripción, cada una en su capa.** Una capa por código
+   normalizado y lado, por ejemplo `PL-CUNETA-IZQ`, `PL-CUNETA-DER`, `PL-VEREDA-IZQ`.
+   Para códigos sin lados (`EJE`) una sola capa `PL-EJE`. Los objetos puntuales van a
+   `PT-CASA`, `PT-MURO`, etc., sin líneas.
+
+3. **Orden: primero el lado (cuadrante), luego el número de punto.** Es decir, la clave
+   de agrupación es `(código, lado)` y dentro del grupo se ordena por número. Esto es
+   exactamente lo descrito en §3.4; el orden por progresiva queda como opción secundaria
+   desactivada por defecto.
+
+4. **Tabla de códigos inicial** (derivada del XML, editable en el JSON de configuración):
+
+   | Código normalizado | Alias detectados | Tipo | Capa base |
+   |--------------------|------------------|------|-----------|
+   | TN | tn, TN, t, tm | Línea | PL-TN |
+   | CUNETA | cuneta, Cuneta, CNT, cumeta, cuenta, cunet, cunetq, cunera, cunetw, cumet, vunet, vuneta | Línea | PL-CUNETA |
+   | VEREDA | v, ver, VRD, ve | Línea | PL-VEREDA |
+   | BORDE | b, BRD, BD | Línea | PL-BORDE |
+   | EJE | e, EJE | Línea (sin lados) | PL-EJE |
+   | CARRETERA | crr, Crr, CRC | Línea | PL-CARRETERA |
+   | CASA, MURO, PILON, BM, PG, BZ, AGUA, ALC, TUBO, LOSA, SH, GP, Q, PT | — | Punto | PT-<código> |
+
+   Todo alias no listado se intenta resolver por similitud; si no alcanza el umbral, el
+   punto se reporta como "código desconocido" y no se dibuja. Nunca se adivina en silencio.
+
+5. **Versión de .NET**: se asume la que el usuario indica (.NET 10 para Civil 3D 2027),
+   pero se verifica en la máquina de desarrollo antes de crear el proyecto, revisando el
+   *target framework* de `accoremgd.dll` en la carpeta de instalación. El `.csproj` tendrá
+   el `TargetFramework` en una sola propiedad para cambiarlo sin tocar el código.
+
+6. **Detección de lado igual que el desfase de Civil 3D**: sí, es el mismo cálculo. El
+   método `Alignment.StationOffset` devuelve el offset con signo: negativo = izquierda,
+   positivo = derecha mirando hacia progresivas crecientes. Es la misma convención que
+   muestra el programa al hacer un desfase. Ese signo es el **primer criterio** de unión
+   (define el grupo) y el número de punto el segundo (define el orden dentro del grupo).
+
+### 9.3 Ajustes al flujo y a las fases
+
+- Fase 1 incorpora: normalización por alias, modo continuidad para curvas de vuelta,
+  salida `Polyline3d` con capa por código y lado, reporte de códigos desconocidos.
+- Se agrega el comando `PLANIMETRIAEJE` para construir el eje desde los puntos `e`.
+- Parámetros iniciales sugeridos para esta vía: `offsetMax` 40 m para CUNETA/VEREDA/BORDE,
+  80 m para TN; `distMax` 30 m; `tolEje` 0.15 m. Se ajustan en el JSON.
+- Con 17 000 puntos el cálculo de `StationOffset` por punto es rápido (segundos), pero
+  la creación de entidades se hará en una sola transacción para no degradar el dibujo.

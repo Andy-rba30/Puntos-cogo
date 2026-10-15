@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Plugin de planimetría por lados para Autodesk Civil 3D 2027.
+    - TargetFramework: cambiar aquí si la instalación real de Civil 3D usa otra versión de .NET.
+    - AutodeskDir: carpeta de instalación de AutoCAD/Civil 3D (acmgd.dll, acdbmgd.dll, accoremgd.dll).
+    - CivilDir: carpeta donde vive AeccDbMgd.dll. En Civil 3D suele ser la subcarpeta C3D\ de AutodeskDir;
+      si no existe allí se busca directamente en AutodeskDir.
+    Ambas rutas pueden sobreescribirse desde la línea de comandos:
+      dotnet build -p:AutodeskDir="D:\Autodesk\Civil 3D 2027\"
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>PlanimetriaCogo</RootNamespace>
+    <AssemblyName>PlanimetriaCogo</AssemblyName>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Permite al menos restaurar/compilar el proyecto fuera de Windows con fines de verificación. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- Las DLL de Autodesk no se copian a la salida: las provee el propio Civil 3D. -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AutodeskDir Condition="'$(AutodeskDir)' == ''">C:\Program Files\Autodesk\AutoCAD 2027\</AutodeskDir>
+    <AutodeskDir Condition="!HasTrailingSlash('$(AutodeskDir)')">$(AutodeskDir)\</AutodeskDir>
+    <CivilDir Condition="'$(CivilDir)' == '' And Exists('$(AutodeskDir)C3D\AeccDbMgd.dll')">$(AutodeskDir)C3D\</CivilDir>
+    <CivilDir Condition="'$(CivilDir)' == ''">$(AutodeskDir)</CivilDir>
+    <CivilDir Condition="!HasTrailingSlash('$(CivilDir)')">$(CivilDir)\</CivilDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="accoremgd">
+      <HintPath>$(AutodeskDir)accoremgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="acdbmgd">
+      <HintPath>$(AutodeskDir)acdbmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="acmgd">
+      <HintPath>$(AutodeskDir)acmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AeccDbMgd">
+      <HintPath>$(CivilDir)AeccDbMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

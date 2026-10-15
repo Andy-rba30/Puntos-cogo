@@ -140,9 +140,13 @@
                 <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" IsChecked="{Binding ReportToFile}" Content="Guardar el reporte en archivos .txt y .csv" />
                 <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
                     <CheckBox x:Name="SingleLayerCheck" IsChecked="{Binding SingleLayer}" Content="Dibujar todas las líneas en una sola capa:"
-                              ToolTip="Cada línea conserva el color de su fila como color de entidad. Los objetos puntuales siguen usando su capa." />
+                              ToolTip="Las líneas se dibujan ByLayer con el color de la capa (uniforme). Los objetos puntuales siguen usando su capa." />
                     <TextBox Width="160" Margin="8,2,0,2" IsEnabled="{Binding IsChecked, ElementName=SingleLayerCheck}"
                              Text="{Binding SingleLayerName, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Style="{StaticResource Label}" Margin="8,2,4,2" Text="color ACI:" />
+                    <TextBox Width="40" Margin="0,2,0,2" IsEnabled="{Binding IsChecked, ElementName=SingleLayerCheck}"
+                             ToolTip="7 = blanco/negro (negro sobre fondo claro y al imprimir)"
+                             Text="{Binding SingleLayerColor, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
                 <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Label}" Text="Carpeta del reporte (vacío = carpeta del DWG):" />
                 <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ReportFolder, UpdateSourceTrigger=PropertyChanged}" />

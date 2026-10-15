@@ -35,8 +35,11 @@ public static class ClassificationProposer
             {
                 // En la carga inicial solo se resuelve por catálogo (código o alias); la similitud se aplica al
                 // pulsar "Sugerir similares". Con UseDescriptionAsCode, lo desconocido se propone a sí mismo.
-                var destination = catalog.Resolve(norm) ?? (settings.UseDescriptionAsCode ? norm : "");
-                ApplyDestination(rule, destination, catalog, settings);
+                var known = catalog.Resolve(norm);
+                if (known != null)
+                    ApplyDestination(rule, known, catalog, settings);
+                else
+                    ApplyDestination(rule, settings.UseDescriptionAsCode ? CodeFromDescription(group.Key) : "", catalog, settings, exact: true);
             }
 
             rule.LayerBase = LayerNames.ProposeBase(rule, settings);
@@ -58,12 +61,14 @@ public static class ClassificationProposer
     }
 
     /// <summary>
-    /// Asigna un código destino (se normaliza) y vuelve a proponer tipo, lados, color y capa.
+    /// Asigna un código destino y vuelve a proponer tipo, lados, color y capa. El código se normaliza
+    /// (mayúsculas, sin tildes) salvo con <paramref name="exact"/>, que lo conserva tal cual ("Usar nombre como
+    /// código"); el catálogo se consulta igual en forma normalizada.
     /// Con <paramref name="blockMode"/> se propone además la unión por bloques (<see cref="ApplyBlockProposal"/>).
     /// </summary>
-    public static void ApplyDestination(CodeRule rule, string? destination, CodeCatalog catalog, Settings settings, bool blockMode = false)
+    public static void ApplyDestination(CodeRule rule, string? destination, CodeCatalog catalog, Settings settings, bool blockMode = false, bool exact = false)
     {
-        var code = DescriptionNormalizer.Normalize(destination);
+        var code = exact ? (destination ?? "").Trim() : DescriptionNormalizer.Normalize(destination);
         rule.DestinationCode = code;
 
         if (code.Length == 0)
@@ -109,13 +114,14 @@ public static class ClassificationProposer
             return;
         }
 
+        var code = DescriptionNormalizer.Normalize(rule.DestinationCode);
         var closed = settings.ClosedBlockCodes.Select(DescriptionNormalizer.Normalize);
-        if (closed.Contains(rule.DestinationCode, StringComparer.Ordinal))
+        if (closed.Contains(code, StringComparer.Ordinal))
         {
             rule.Kind = CodeKind.Line;
             rule.BlockJoin = BlockJoin.ClosedBlock;
         }
-        else if (rule.DestinationCode == DescriptionNormalizer.Normalize(settings.AxisCode))
+        else if (code == DescriptionNormalizer.Normalize(settings.AxisCode))
             rule.BlockJoin = BlockJoin.Continuous;
         else
             rule.BlockJoin = BlockJoin.Block;
@@ -123,13 +129,14 @@ public static class ClassificationProposer
     }
 
     /// <summary>
-    /// Código destino "tal cual el nombre": la descripción normalizada sin marcas ni serie ("cunetq B" → "CUNETQ B",
-    /// "cuneta f" → "CUNETA"). Devuelve null para descripciones vacías o numéricas (quedan en Ignorar).
+    /// Código destino "tal cual el nombre": la descripción exacta (mayúsculas, minúsculas, tildes y espacios
+    /// interiores respetados; solo se recortan los extremos). Devuelve null para descripciones vacías o numéricas
+    /// (quedan en Ignorar). Las marcas de la descripción siguen cortando al dibujar, pero forman parte del código.
     /// </summary>
-    public static string? CodeFromDescription(string? original, Settings settings)
+    public static string? CodeFromDescription(string? original)
     {
-        var baseCode = new DescriptionParser(settings).Parse(original).BaseCode;
-        return DescriptionNormalizer.IsEmptyOrNumeric(baseCode) ? null : baseCode;
+        var text = (original ?? "").Trim();
+        return DescriptionNormalizer.IsEmptyOrNumeric(DescriptionNormalizer.Normalize(text)) ? null : text;
     }
 
     /// <summary>Tipo por defecto: Punto para nombres de objeto conocidos, Línea para el resto.</summary>

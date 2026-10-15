@@ -201,7 +201,7 @@
                     ToolTip="Agrupa descripciones parecidas (mayúsculas, errores de tipeo, prefijos) y propone un código destino común"
                     Click="SuggestButton_Click" />
             <Button DockPanel.Dock="Left" Content="Usar nombre como código" Style="{StaticResource ToolButton}"
-                    ToolTip="Cada fila toma su propia descripción como código destino (cunetq B → CUNETQ B), sin catálogo ni similitud. Con filas marcadas o seleccionadas actúa sobre ellas; si no, sobre todas las que están sin resolver."
+                    ToolTip="Cada fila toma su propia descripción, tal cual (mayúsculas, minúsculas y espacios), como código destino, sin catálogo ni similitud. Con filas marcadas o seleccionadas actúa sobre ellas; si no, sobre todas las que están sin resolver."
                     Click="UseNamesButton_Click" />
             <TextBlock DockPanel.Dock="Left" Text="Código:" VerticalAlignment="Center" Margin="12,0,4,0" />
             <ComboBox DockPanel.Dock="Left" Width="140" IsEditable="True"
@@ -229,10 +229,15 @@
                 <StackPanel Orientation="Horizontal" Margin="0,2,16,2">
                     <CheckBox x:Name="SingleLayerCheck" VerticalAlignment="Center" IsChecked="{Binding SingleLayer}"
                               Content="Todas las líneas en una sola capa:"
-                              ToolTip="En vez de una capa por código (y lado), todas las polilíneas van a esta capa; cada una conserva el color de su fila como color de entidad. Los objetos puntuales siguen usando su capa." />
+                              ToolTip="En vez de una capa por código (y lado), todas las polilíneas van a esta capa, ByLayer, con un solo color. Los objetos puntuales siguen usando su capa." />
                     <TextBox Width="140" Margin="6,0,0,0" VerticalContentAlignment="Center"
                              IsEnabled="{Binding IsChecked, ElementName=SingleLayerCheck}"
                              Text="{Binding SingleLayerName, UpdateSourceTrigger=LostFocus}" />
+                    <TextBlock Text="color (ACI):" VerticalAlignment="Center" Margin="8,0,4,0" />
+                    <TextBox Width="40" VerticalContentAlignment="Center"
+                             IsEnabled="{Binding IsChecked, ElementName=SingleLayerCheck}"
+                             ToolTip="Color de la capa única: 7 = blanco/negro (negro sobre fondo claro y al imprimir)"
+                             Text="{Binding SingleLayerColor, UpdateSourceTrigger=LostFocus}" />
                 </StackPanel>
                 <CheckBox Margin="0,2,16,2" IsChecked="{Binding KeepGeneratedAxis}"
                           Visibility="{Binding AxisFromPoints, Converter={StaticResource BoolToVisibility}}"

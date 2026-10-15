@@ -133,11 +133,12 @@ serie interna (variable `ACADVER`), ajuste el rango.
      los perfiles.
    - **Buscar** y **Solo sin resolver** filtran la tabla; las columnas se ordenan al pulsar el encabezado.
    - **Sugerir similares**, **Unificar selección** y **Restablecer** (vuelve a la propuesta del catálogo).
-   - **Usar nombre como código**: cada fila toma su propia descripción (normalizada, sin marcas ni serie)
-     como código destino (`cunetq B` → `CUNETQ B`), sin pasar por el catálogo ni por la similitud. Con
-     filas marcadas o seleccionadas actúa sobre ellas (incluso si ya estaban resueltas); sin selección,
-     sobre todas las que están sin resolver. El parámetro `useDescriptionAsCode` hace lo mismo
-     automáticamente al abrir la ventana.
+   - **Usar nombre como código**: cada fila toma su propia descripción, **tal cual** (mayúsculas,
+     minúsculas, tildes y espacios respetados: `cunetq B` → `cunetq B`), como código destino, sin pasar
+     por el catálogo ni por la similitud. Con filas marcadas o seleccionadas actúa sobre ellas (incluso
+     si ya estaban resueltas); sin selección, sobre todas las que están sin resolver. El parámetro
+     `useDescriptionAsCode` hace lo mismo automáticamente al abrir la ventana. Las descripciones
+     vacías o numéricas quedan en Ignorar.
    - **Edición en bloque**: seleccione varias filas (clic y Mayús+clic, Ctrl+clic, o la casilla
      *Sel.*) y edite cualquiera de ellas; el código destino, tipo, lado, capa, color o casilla
      *Dibujar* que cambie se copia a todas las seleccionadas. Un clic simple sobre una fila ya seleccionada no deshace la
@@ -150,9 +151,9 @@ serie interna (variable `ACADVER`), ajuste el rango.
      `catalogo.json`, así se reconocen solos la próxima vez.
    - **Parámetros…**: abre la ventana de parámetros (igual que `PLANIMETRIACONFIG`).
    - **Al dibujar**: casillas *Actualizar descripciones en el dibujo*, *Mover objetos puntuales a su
-     capa*, *Guardar reporte en archivo*, *Todas las líneas en una sola capa* (por defecto `Planimetría`;
-     cada línea conserva el color de su fila como color de entidad y los objetos puntuales siguen en su
-     capa) y, con eje desde puntos, *Conservar el eje generado*. Todas apagadas por defecto; las dos
+     capa*, *Guardar reporte en archivo*, *Todas las líneas en una sola capa* (por defecto `Planimetría`
+     en color ACI 7, blanco/negro; todas las líneas van ByLayer con ese único color y los objetos
+     puntuales siguen en su capa) y, con eje desde puntos, *Conservar el eje generado*. Todas apagadas por defecto; las dos
      primeras piden confirmación.
 4. **Dibujar**: proyecta cada punto (modo continuidad en curvas de vuelta), determina el lado (el
    escrito en la descripción prevalece y se reporta la discrepancia), agrupa por (código, lado[,
@@ -187,7 +188,7 @@ También puede editarse el JSON a mano (se admiten comentarios).
 | `updateDescriptionsInDrawing` | `false` | Reescribir descripciones con el código destino (conserva marcas y serie). |
 | `reportToFile` / `reportFolder` | `false` / vacío | Reporte en archivo; vacío = carpeta del DWG. |
 | `useDescriptionAsCode` | `false` | Proponer la propia descripción como código destino cuando no está en el catálogo (nada queda sin resolver). |
-| `singleLayer` / `singleLayerName` | `false` / `Planimetría` | Dibujar todas las líneas en una sola capa, con el color de cada fila en la entidad. |
+| `singleLayer` / `singleLayerName` / `singleLayerColor` | `false` / `Planimetría` / `7` | Dibujar todas las líneas en una sola capa, ByLayer, con un solo color (7 = blanco/negro). |
 | `lineLayerPrefix`, `pointLayerPrefix`, `leftLayerSuffix`, `rightLayerSuffix` | `PL-`, `PT-`, `-IZQ`, `-DER` | Nomenclatura de capas. |
 | `closedBlockCodes` | `CASA` | Modo por bloques: códigos cuyos bloques de 3 o más puntos se dibujan como polilínea cerrada. |
 | `csvColumnOrder` | `pnezd` | Modo por bloques: orden de columnas del archivo la última vez (`pnezd` o `penzd`). |
@@ -241,7 +242,7 @@ segundo y producen unas 3 100 polilíneas (1 500 de `TN`, 1 150 de `CUNETA`, 180
 
 ## Verificación
 
-- `dotnet test PlanimetriaCogo.Tests`: 207 pruebas en verde (núcleo, configuración, perfiles,
+- `dotnet test PlanimetriaCogo.Tests`: 208 pruebas en verde (núcleo, configuración, perfiles,
   reporte, lector CSV, motor por bloques y view-models).
 - El proyecto principal (Acad/ y UI/ incluidos) se compiló en Linux contra ensamblados *stub* de
   Autodesk escritos a mano con las firmas usadas. Eso verifica sintaxis y tipos propios, **no** que

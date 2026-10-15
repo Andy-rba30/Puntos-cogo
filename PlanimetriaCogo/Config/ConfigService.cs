@@ -99,6 +99,7 @@ public sealed class ConfigService
         s.ClosedBlockCodes ??= d.ClosedBlockCodes;
         s.ReportFolder ??= "";
         if (string.IsNullOrWhiteSpace(s.SingleLayerName)) s.SingleLayerName = d.SingleLayerName;
+        if (s.SingleLayerColor is <= 0 or >= 256) s.SingleLayerColor = d.SingleLayerColor;
         if (string.IsNullOrWhiteSpace(s.LineLayerPrefix)) s.LineLayerPrefix = d.LineLayerPrefix;
         if (string.IsNullOrWhiteSpace(s.PointLayerPrefix)) s.PointLayerPrefix = d.PointLayerPrefix;
         s.LeftLayerSuffix ??= d.LeftLayerSuffix;

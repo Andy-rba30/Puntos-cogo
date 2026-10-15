@@ -132,9 +132,9 @@ public class Commands
             var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
             foreach (var line in result.Lines)
             {
-                // Capa única: la capa se crea en color 7 y cada línea lleva el color de su fila como color de entidad.
-                var layerId = LayerManager.EnsureLayer(db, tr, line.Layer, settings.SingleLayer ? (short)7 : line.ColorIndex);
-                GeometryBuilder.AddPolyline3d(tr, modelSpace, line, layerId, colorOnEntity: settings.SingleLayer);
+                // Capa única: un solo color (el de la capa) para todas las líneas, que se dibujan ByLayer.
+                var layerId = LayerManager.EnsureLayer(db, tr, line.Layer, settings.SingleLayer ? settings.SingleLayerColor : line.ColorIndex);
+                GeometryBuilder.AddPolyline3d(tr, modelSpace, line, layerId);
             }
 
             if (builtAxis != null && settings.KeepGeneratedAxis)
@@ -312,9 +312,9 @@ public class Commands
             var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
             foreach (var line in result.Lines)
             {
-                // Capa única: la capa se crea en color 7 y cada línea lleva el color de su fila como color de entidad.
-                var layerId = LayerManager.EnsureLayer(db, tr, line.Layer, settings.SingleLayer ? (short)7 : line.ColorIndex);
-                GeometryBuilder.AddPolyline3d(tr, modelSpace, line, layerId, colorOnEntity: settings.SingleLayer);
+                // Capa única: un solo color (el de la capa) para todas las líneas, que se dibujan ByLayer.
+                var layerId = LayerManager.EnsureLayer(db, tr, line.Layer, settings.SingleLayer ? settings.SingleLayerColor : line.ColorIndex);
+                GeometryBuilder.AddPolyline3d(tr, modelSpace, line, layerId);
             }
             tr.Commit();
             ReportWriter.Write(ed, result);

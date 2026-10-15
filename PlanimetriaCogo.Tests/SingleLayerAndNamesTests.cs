@@ -12,7 +12,7 @@ public class SingleLayerAndNamesTests
         new() { Number = n, RawDescription = desc, X = x, Y = y, Sequence = (int)n, SourceId = n.ToString() };
 
     [Fact]
-    public void SingleLayer_AxisMode_AllLinesGoToOneLayer_KeepingRowColor()
+    public void SingleLayer_AxisMode_AllLinesGoToOneLayer()
     {
         var settings = new Settings { SingleLayer = true, SingleLayerName = "Planimetría" };
         var points = new[] { P(1, "CUNETA", 10, 4), P(2, "CUNETA", 20, 4), P(3, "v", 10, -4), P(4, "v", 20, -4) };
@@ -50,14 +50,35 @@ public class SingleLayerAndNamesTests
     }
 
     [Fact]
-    public void CodeFromDescription_UsesBaseCodeWithoutMarks()
+    public void CodeFromDescription_KeepsTextExactly()
+    {
+        Assert.Equal("cunetq B", ClassificationProposer.CodeFromDescription("cunetq B"));
+        Assert.Equal("Muro  alto", ClassificationProposer.CodeFromDescription("  Muro  alto "));
+        Assert.Equal("cuneta f", ClassificationProposer.CodeFromDescription("cuneta f"));
+        Assert.Equal("Árbol", ClassificationProposer.CodeFromDescription("Árbol"));
+        Assert.Null(ClassificationProposer.CodeFromDescription(""));
+        Assert.Null(ClassificationProposer.CodeFromDescription("   "));
+        Assert.Null(ClassificationProposer.CodeFromDescription("3015396"));
+    }
+
+    [Fact]
+    public void ExactCode_StillMatchesCatalogKindAndBlockProposal_AndAxisCode()
     {
         var settings = new Settings();
-        Assert.Equal("CUNETQ B", ClassificationProposer.CodeFromDescription("cunetq B", settings));
-        Assert.Equal("CUNETA", ClassificationProposer.CodeFromDescription("cuneta f", settings));
-        Assert.Equal("CUNETA", ClassificationProposer.CodeFromDescription("cuneta2", settings));
-        Assert.Null(ClassificationProposer.CodeFromDescription("", settings));
-        Assert.Null(ClassificationProposer.CodeFromDescription("3015396", settings));
+        var rule = new CodeRule { Original = "casa", Count = 3 };
+        ClassificationProposer.ApplyDestination(rule, "casa", CodeCatalog.Default, settings, blockMode: true, exact: true);
+        Assert.Equal("casa", rule.DestinationCode);
+        Assert.Equal(CodeKind.Line, rule.Kind);
+        Assert.Equal(BlockJoin.ClosedBlock, rule.BlockJoin);
+        Assert.Equal("PL-casa", rule.LayerBase);
+
+        var axis = new CodeRule { Original = "eje" };
+        ClassificationProposer.ApplyDestination(axis, "eje", CodeCatalog.Default, settings, blockMode: true, exact: true);
+        Assert.Equal(BlockJoin.Continuous, axis.BlockJoin);
+        Assert.False(axis.SplitBySide);
+
+        var points = new[] { P(1, "eje", 0, 0), P(2, "eje", 10, 0), P(3, "v", 5, 3) };
+        Assert.Equal(2, AxisBuilder.SelectAxisPoints(points, new[] { axis, new CodeRule { Original = "v", DestinationCode = "VEREDA" } }, settings).Count);
     }
 
     [Fact]
@@ -68,9 +89,9 @@ public class SingleLayerAndNamesTests
         var rules = ClassificationProposer.BuildRules(points, CodeCatalog.Default, settings);
 
         var unknown = rules.Single(r => r.Original == "cunetq B");
-        Assert.Equal("CUNETQ B", unknown.DestinationCode);
+        Assert.Equal("cunetq B", unknown.DestinationCode);
         Assert.Equal(CodeKind.Line, unknown.Kind);
-        Assert.Equal("PL-CUNETQ B", unknown.LayerBase);
+        Assert.Equal("PL-cunetq B", unknown.LayerBase);
         Assert.Equal("VEREDA", rules.Single(r => r.Original == "v").DestinationCode); // el catálogo sigue mandando
         Assert.Equal(CodeKind.Ignore, rules.Single(r => r.Original == "").Kind);
         Assert.Equal(CodeKind.Ignore, rules.Single(r => r.Original == "3015396").Kind);
@@ -87,14 +108,14 @@ public class SingleLayerAndNamesTests
 
         Assert.Equal(2, vm.UseNamesAsCodes());
 
-        Assert.Equal("CUNETQ B", vm.Rows.Single(r => r.Rule.Original == "cunetq B").DestinationCode);
-        Assert.Equal("ZZZ", vm.Rows.Single(r => r.Rule.Original == "zzz").DestinationCode);
+        Assert.Equal("cunetq B", vm.Rows.Single(r => r.Rule.Original == "cunetq B").DestinationCode);
+        Assert.Equal("zzz", vm.Rows.Single(r => r.Rule.Original == "zzz").DestinationCode);
         Assert.Equal(BlockJoin.Block, vm.Rows.Single(r => r.Rule.Original == "zzz").Rule.BlockJoin);
         Assert.Equal("VEREDA", vm.Rows.Single(r => r.Rule.Original == "v").DestinationCode); // resuelta: no se toca
         Assert.Equal(CodeKind.Ignore, vm.Rows.Single(r => r.Rule.Original == "").Rule.Kind);
         Assert.Equal(0, vm.PointsUnresolved);
         Assert.Contains("2 fila(s)", vm.StatusMessage);
-        Assert.Contains("CUNETQ B", vm.AvailableCodes);
+        Assert.Contains("cunetq B", vm.AvailableCodes);
 
         Assert.Equal(0, vm.UseNamesAsCodes());
         Assert.Equal("No hay filas sin resolver.", vm.StatusMessage);
@@ -112,14 +133,14 @@ public class SingleLayerAndNamesTests
 
         Assert.Equal(1, vm.UseNamesAsCodes());
 
-        Assert.Equal("V", v.DestinationCode);
+        Assert.Equal("v", v.DestinationCode);
         Assert.False(v.IsSelected);
         Assert.Equal("VEREDA", vm.Rows.Single(r => r.Rule.Original == "ver").DestinationCode);
         Assert.False(vm.Rows.Single(r => r.Rule.Original == "zzz").IsResolved); // había selección: lo demás no se toca
 
         // Selección de la tabla como alternativa a la casilla Sel.
         Assert.Equal(1, vm.UseNamesAsCodes(new[] { vm.Rows.Single(r => r.Rule.Original == "zzz") }));
-        Assert.Equal("ZZZ", vm.Rows.Single(r => r.Rule.Original == "zzz").DestinationCode);
+        Assert.Equal("zzz", vm.Rows.Single(r => r.Rule.Original == "zzz").DestinationCode);
     }
 
     [Fact]
@@ -137,6 +158,12 @@ public class SingleLayerAndNamesTests
 
         vm.SingleLayerName = "   "; // vacío: se conserva el anterior
         Assert.Equal("Plani_metría", settings.SingleLayerName);
+
+        vm.SingleLayerColor = 250;
+        Assert.Equal(250, settings.SingleLayerColor);
+        vm.SingleLayerColor = 0; // fuera de rango: se conserva
+        Assert.Equal(250, settings.SingleLayerColor);
+        Assert.Contains("(color 250)", vm.SettingsSummary);
     }
 
     [Fact]
@@ -148,9 +175,13 @@ public class SingleLayerAndNamesTests
         Assert.False(vm.Apply());
 
         vm.SingleLayerName = "Planimetría";
+        vm.SingleLayerColor = 300;
+        Assert.Contains(vm.Validate(), e => e.Contains("color"));
+        vm.SingleLayerColor = 7;
         Assert.True(vm.Apply());
         Assert.True(target.SingleLayer);
         Assert.Equal("Planimetría", target.SingleLayerName);
+        Assert.Equal(7, target.SingleLayerColor);
         Assert.True(target.UseDescriptionAsCode);
 
         var clone = target.Clone();

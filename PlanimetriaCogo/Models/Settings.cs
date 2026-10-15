@@ -75,6 +75,14 @@ public sealed class Settings
     /// <summary>Marcas de lado derecho explícito.</summary>
     public List<string> RightMarks { get; set; } = new() { "D", "DER" };
 
+    /// <summary>
+    /// Marcas de inicio de bloque ("cuneta B", "casa B"): el punto abre un bloque nuevo de su código. No forman parte
+    /// del código: "casa B" y "casa" son la misma descripción (una sola fila en la ventana) y el mismo código. En el
+    /// modo por bloques cada marca separa un bloque del anterior aunque el código siga igual. En el modo por eje solo
+    /// se quitan del código.
+    /// </summary>
+    public List<string> BlockStartMarks { get; set; } = new() { "B" };
+
     /// <summary>Sufijo numérico de serie ("CUNETA1", "CUNETA2") produce líneas distintas.</summary>
     public bool SplitSeries { get; set; } = false;
 
@@ -140,6 +148,7 @@ public sealed class Settings
         copy.EndMarks = new List<string>(EndMarks);
         copy.LeftMarks = new List<string>(LeftMarks);
         copy.RightMarks = new List<string>(RightMarks);
+        copy.BlockStartMarks = new List<string>(BlockStartMarks);
         copy.ClosedBlockCodes = new List<string>(ClosedBlockCodes);
         return copy;
     }
@@ -161,6 +170,7 @@ public sealed class Settings
         EndMarks = new List<string>(other.EndMarks);
         LeftMarks = new List<string>(other.LeftMarks);
         RightMarks = new List<string>(other.RightMarks);
+        BlockStartMarks = new List<string>(other.BlockStartMarks);
         SplitSeries = other.SplitSeries;
         ClosedBlockCodes = new List<string>(other.ClosedBlockCodes);
         CsvColumnOrder = other.CsvColumnOrder;

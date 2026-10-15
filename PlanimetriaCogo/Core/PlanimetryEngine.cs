@@ -37,22 +37,25 @@ public sealed class PlanimetryEngine
         {
             result.TotalPoints++;
             var raw = point.RawDescription ?? "";
-            ruleByOriginal.TryGetValue(raw, out var rule);
+            // "cuneta B" usa la fila "cuneta": la marca de inicio de bloque no es parte de la descripción.
+            var rowKey = _parser.RowKey(raw);
+            if (!ruleByOriginal.TryGetValue(raw, out var rule))
+                ruleByOriginal.TryGetValue(rowKey, out rule);
 
             if (rule != null && (rule.Kind == CodeKind.Ignore || !rule.Draw))
             {
-                Increment(result.IgnoredCodes, raw);
+                Increment(result.IgnoredCodes, rule.Original);
                 continue;
             }
             if (rule == null || !rule.IsResolved)
             {
-                Increment(result.UnresolvedCodes, raw);
+                Increment(result.UnresolvedCodes, rule?.Original ?? rowKey);
                 continue;
             }
 
             var parsed = _parser.Parse(raw);
-            // Con "Usar nombre como código" el código es la descripción exacta: no hay nada que reescribir.
-            if (!string.Equals(rule.DestinationCode, raw.Trim(), StringComparison.Ordinal))
+            // Con "Usar nombre como código" el código es la descripción sin marcas: no hay nada que reescribir.
+            if (!string.Equals(rule.DestinationCode, _parser.StripMarks(raw), StringComparison.Ordinal))
             {
                 var newDescription = DescriptionParser.Rebuild(parsed, rule.DestinationCode);
                 if (!string.Equals(newDescription, raw, StringComparison.Ordinal))

@@ -11,19 +11,27 @@ namespace PlanimetriaCogo.Core;
 /// </summary>
 public static class ClassificationProposer
 {
-    /// <summary>Una fila por descripción original (sensible a mayúsculas), ordenadas por cantidad.</summary>
+    /// <summary>
+    /// Una fila por descripción original (sensible a mayúsculas), ordenadas por cantidad. Las marcas de inicio de
+    /// bloque no crean filas aparte: "casa B" se cuenta en la fila "casa" (ver <see cref="DescriptionParser.RowKey"/>).
+    /// </summary>
     public static List<CodeRule> BuildRules(IEnumerable<SurveyPoint> points, CodeCatalog catalog, Settings settings)
     {
         var rules = new List<CodeRule>();
         var parser = new DescriptionParser(settings);
-        foreach (var group in points
-                     .GroupBy(p => p.RawDescription ?? "", StringComparer.Ordinal)
-                     .OrderByDescending(g => g.Count())
-                     .ThenBy(g => g.Key, StringComparer.Ordinal))
+        var rows = points
+            .Select(p => (Raw: p.RawDescription ?? "", Key: parser.RowKey(p.RawDescription)))
+            .GroupBy(p => p.Key, StringComparer.Ordinal)
+            .Select(g => (g.Key, Count: g.Count()))
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.Key, StringComparer.Ordinal)
+            .ToList();
+
+        foreach (var row in rows)
         {
-            var rule = new CodeRule { Original = group.Key, Count = group.Count() };
+            var rule = new CodeRule { Original = row.Key, Count = row.Count };
             // Se resuelve por el código base: "cuneta f" → CUNETA (la marca F la conserva el motor).
-            var norm = parser.Parse(group.Key).BaseCode;
+            var norm = parser.Parse(row.Key).BaseCode;
 
             if (DescriptionNormalizer.IsEmptyOrNumeric(norm))
             {
@@ -39,7 +47,7 @@ public static class ClassificationProposer
                 if (known != null)
                     ApplyDestination(rule, known, catalog, settings);
                 else
-                    ApplyDestination(rule, settings.UseDescriptionAsCode ? CodeFromDescription(group.Key) : "", catalog, settings, exact: true);
+                    ApplyDestination(rule, settings.UseDescriptionAsCode ? CodeFromDescription(row.Key, settings) : "", catalog, settings, exact: true);
             }
 
             rule.LayerBase = LayerNames.ProposeBase(rule, settings);
@@ -56,14 +64,14 @@ public static class ClassificationProposer
     {
         var rules = BuildRules(points, catalog, settings);
         foreach (var rule in rules)
-            ApplyBlockProposal(rule, settings);
+            ApplyBlockProposal(rule, settings, catalog);
         return rules;
     }
 
     /// <summary>
     /// Asigna un código destino y vuelve a proponer tipo, lados, color y capa. El código se normaliza
     /// (mayúsculas, sin tildes) salvo con <paramref name="exact"/>, que lo conserva tal cual ("Usar nombre como
-    /// código"); el catálogo se consulta igual en forma normalizada.
+    /// código"); el catálogo se consulta igual en forma normalizada y también por alias ("e" toma lo de EJE).
     /// Con <paramref name="blockMode"/> se propone además la unión por bloques (<see cref="ApplyBlockProposal"/>).
     /// </summary>
     public static void ApplyDestination(CodeRule rule, string? destination, CodeCatalog catalog, Settings settings, bool blockMode = false, bool exact = false)
@@ -80,7 +88,7 @@ public static class ClassificationProposer
             return;
         }
 
-        var entry = catalog.Find(code);
+        var entry = catalog.Find(code) ?? catalog.Find(catalog.Resolve(code));
         if (entry != null)
         {
             rule.Kind = entry.Kind;
@@ -94,19 +102,18 @@ public static class ClassificationProposer
         }
 
         if (blockMode)
-            ApplyBlockProposal(rule, settings);
+            ApplyBlockProposal(rule, settings, catalog);
         rule.LayerBase = LayerNames.ProposeBase(rule, settings);
     }
 
     /// <summary>
-    /// Unión propuesta para el modo por bloques:
-    /// <list type="bullet">
-    ///   <item>Código en <see cref="Settings.ClosedBlockCodes"/> (CASA…): tipo Línea con bloque cerrado, aunque el catálogo lo tenga como Punto.</item>
-    ///   <item>Código del eje (<see cref="Settings.AxisCode"/>): línea continua con todos sus puntos en orden de archivo.</item>
-    ///   <item>Resto: una polilínea abierta por bloque.</item>
-    /// </list>
+    /// Propuesta del modo por bloques. El único criterio es el archivo: cada bloque (filas consecutivas con el mismo
+    /// código, en orden de archivo; una marca "B" abre uno nuevo) es un elemento separado, para todos los códigos.
+    /// Por eso todo código resuelto se propone como Línea por bloque, aunque el catálogo lo tenga como Punto; los
+    /// de <see cref="Settings.ClosedBlockCodes"/> (CASA…), como bloque cerrado, que solo se cierra si el bloque forma
+    /// un polígono. "Continua" y "Punto" quedan para elegirlos a mano en la ventana.
     /// </summary>
-    public static void ApplyBlockProposal(CodeRule rule, Settings settings)
+    public static void ApplyBlockProposal(CodeRule rule, Settings settings, CodeCatalog? catalog = null)
     {
         if (!rule.IsResolved || rule.Kind == CodeKind.Ignore)
         {
@@ -115,27 +122,23 @@ public static class ClassificationProposer
         }
 
         var code = DescriptionNormalizer.Normalize(rule.DestinationCode);
-        var closed = settings.ClosedBlockCodes.Select(DescriptionNormalizer.Normalize);
-        if (closed.Contains(code, StringComparer.Ordinal))
-        {
-            rule.Kind = CodeKind.Line;
-            rule.BlockJoin = BlockJoin.ClosedBlock;
-        }
-        else if (code == DescriptionNormalizer.Normalize(settings.AxisCode))
-            rule.BlockJoin = BlockJoin.Continuous;
-        else
-            rule.BlockJoin = BlockJoin.Block;
+        var canonical = catalog?.Resolve(code) ?? code;
+        var closed = settings.ClosedBlockCodes.Select(DescriptionNormalizer.Normalize).Any(c => c == code || c == canonical);
+        rule.Kind = CodeKind.Line;
+        rule.BlockJoin = closed ? BlockJoin.ClosedBlock : BlockJoin.Block;
         rule.LayerBase = LayerNames.ProposeBase(rule, settings);
     }
 
     /// <summary>
-    /// Código destino "tal cual el nombre": la descripción exacta (mayúsculas, minúsculas, tildes y espacios
-    /// interiores respetados; solo se recortan los extremos). Devuelve null para descripciones vacías o numéricas
-    /// (quedan en Ignorar). Las marcas de la descripción siguen cortando al dibujar, pero forman parte del código.
+    /// Código destino "tal cual el nombre": la descripción sin sus marcas (inicio, fin, lado, inicio de bloque) y con
+    /// el resto exacto (mayúsculas, minúsculas, tildes y espacios interiores respetados; solo se recortan los
+    /// extremos): "cunetq B" → "cunetq", "Muro  alto" → "Muro  alto". Las marcas no pueden ir en el código: "casa B"
+    /// y "casa" deben ser el mismo código para formar el mismo bloque; las marcas siguen actuando al dibujar.
+    /// Devuelve null para descripciones vacías o numéricas (quedan en Ignorar).
     /// </summary>
-    public static string? CodeFromDescription(string? original)
+    public static string? CodeFromDescription(string? original, Settings? settings = null)
     {
-        var text = (original ?? "").Trim();
+        var text = new DescriptionParser(settings ?? new Settings()).StripMarks(original);
         return DescriptionNormalizer.IsEmptyOrNumeric(DescriptionNormalizer.Normalize(text)) ? null : text;
     }
 

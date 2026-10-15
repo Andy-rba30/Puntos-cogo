@@ -59,6 +59,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     public string EndMarksText { get => Join(_work.EndMarks); set => Set(v => _work.EndMarks = SplitMarks(v), value); }
     public string LeftMarksText { get => Join(_work.LeftMarks); set => Set(v => _work.LeftMarks = SplitMarks(v), value); }
     public string RightMarksText { get => Join(_work.RightMarks); set => Set(v => _work.RightMarks = SplitMarks(v), value); }
+    public string BlockStartMarksText { get => Join(_work.BlockStartMarks); set => Set(v => _work.BlockStartMarks = SplitMarks(v), value); }
 
     // ---- Modo por bloques (PLANIMETRIACSV) ----
 
@@ -109,7 +110,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             errors.Add("El color de la capa única debe ser un índice ACI entre 1 y 255.");
         if (_work.UseDescriptionMarks)
         {
-            var all = _work.StartMarks.Concat(_work.EndMarks).Concat(_work.LeftMarks).Concat(_work.RightMarks)
+            var all = _work.StartMarks.Concat(_work.EndMarks).Concat(_work.LeftMarks).Concat(_work.RightMarks).Concat(_work.BlockStartMarks)
                 .Select(Core.DescriptionNormalizer.Normalize).Where(m => m.Length > 0).ToList();
             var repeated = all.GroupBy(m => m).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             if (repeated.Count > 0)

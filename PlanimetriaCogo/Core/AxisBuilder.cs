@@ -43,8 +43,9 @@ public static class AxisBuilder
         var axisCode = DescriptionNormalizer.Normalize(settings.AxisCode);
         var originals = new HashSet<string>(
             rules.Where(r => DescriptionNormalizer.Normalize(r.DestinationCode) == axisCode).Select(r => r.Original), StringComparer.Ordinal);
+        var parser = new DescriptionParser(settings);
         return points
-            .Where(p => originals.Contains(p.RawDescription ?? ""))
+            .Where(p => originals.Contains(p.RawDescription ?? "") || originals.Contains(parser.RowKey(p.RawDescription)))
             .OrderBy(p => p.Number).ThenBy(p => p.SourceId, StringComparer.Ordinal)
             .ToList();
     }

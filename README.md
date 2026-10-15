@@ -14,7 +14,7 @@ sección 10.4 más el modo por bloques. Las decisiones tomadas durante la implem
 | 2 | Reglas de corte configurables (distancia, salto de progresiva, marcas de inicio/fin, series), perfiles JSON, eje desde puntos `EJE`, opción de capa para objetos puntuales, parámetros y catálogo en JSON. | Hecho |
 | 3 | Eje por polilínea, reporte a archivo (.txt y .csv), opción "actualizar descripciones en el dibujo". | Hecho |
 | 4 | Pruebas unitarias del núcleo (161), bundle de autocarga, pulido de la ventana (filtro, perfiles, catálogo, parámetros, restablecer). | Hecho |
-| 5 | Modo por bloques: comando `PLANIMETRIACSV` que lee el CSV de campo y dibuja una `Polyline3d` por cada bloque de puntos consecutivos con la misma descripción, en el orden de toma, con bloques cerrados (casas) y línea continua (eje) configurables. | Hecho |
+| 5 | Modo por bloques: comando `PLANIMETRIACSV` que lee el CSV de campo y dibuja una `Polyline3d` por cada bloque de puntos consecutivos con la misma descripción, en el orden de toma; la marca `B` abre un bloque nuevo; casas cerradas solo si forman un polígono. | Hecho |
 
 > Todo se compiló y probó sin Civil 3D (ver [Verificación](#verificación)). Falta compilar y probar
 > en una máquina con Civil 3D 2027 instalado.
@@ -133,12 +133,14 @@ serie interna (variable `ACADVER`), ajuste el rango.
      los perfiles.
    - **Buscar** y **Solo sin resolver** filtran la tabla; las columnas se ordenan al pulsar el encabezado.
    - **Sugerir similares**, **Unificar selección** y **Restablecer** (vuelve a la propuesta del catálogo).
-   - **Usar nombre como código**: cada fila toma su propia descripción, **tal cual** (mayúsculas,
-     minúsculas, tildes y espacios respetados: `cunetq B` → `cunetq B`), como código destino, sin pasar
-     por el catálogo ni por la similitud. Con filas marcadas o seleccionadas actúa sobre ellas (incluso
-     si ya estaban resueltas); sin selección, sobre todas las que están sin resolver. El parámetro
-     `useDescriptionAsCode` hace lo mismo automáticamente al abrir la ventana. Las descripciones
-     vacías o numéricas quedan en Ignorar.
+   - **Usar nombre como código**: cada fila toma su propia descripción como código destino, **sin marcas** y con
+     el resto tal cual (mayúsculas, minúsculas, tildes y espacios respetados: `cunetq B` → `cunetq`, `Cuneta I` →
+     `Cuneta`), sin pasar por el catálogo ni por la similitud. Con filas marcadas en *Sel.* o varias filas
+     seleccionadas actúa sobre ellas; sin selección, sobre **todas** las filas, en cualquier momento (también
+     después de *Sugerir similares*, de cargar un perfil o de editar a mano). Una sola fila resaltada tras un clic
+     no cuenta como selección. Las filas en Ignorar solo cambian si se marcan; las descripciones vacías o numéricas
+     quedan en Ignorar. *Restablecer* vuelve a la propuesta del catálogo. El parámetro `useDescriptionAsCode` hace
+     lo mismo al abrir la ventana con lo que el catálogo no conoce.
    - **Edición en bloque**: seleccione varias filas (clic y Mayús+clic, Ctrl+clic, o la casilla
      *Sel.*) y edite cualquiera de ellas; el código destino, tipo, lado, capa, color o casilla
      *Dibujar* que cambie se copia a todas las seleccionadas. Un clic simple sobre una fila ya seleccionada no deshace la
@@ -178,10 +180,11 @@ También puede editarse el JSON a mano (se admiten comentarios).
 | `axisSampleStep` | 1 m | Paso de muestreo del eje para hallar todas las proyecciones candidatas. |
 | `axisCode` / `keepGeneratedAxis` / `generatedAxisLayer` | `EJE` / `false` / `PL-EJE-GENERADO` | Eje desde puntos. |
 | `order` | `number` | Orden dentro del grupo: `number` (número de punto) o `station` (progresiva). |
-| `distMax` | 30 m | Distancia 2D máxima entre consecutivos; si se supera, corta. 0 = sin límite. |
+| `distMax` | 30 m | Distancia 2D máxima entre consecutivos; si se supera, corta (en el modo por bloques no corta: solo avisa). 0 = sin límite. |
 | `stationGapMax` | 100 m | Salto máximo de progresiva entre consecutivos (corta entre pasadas distintas del eje). 0 = sin límite. |
 | `useDescriptionMarks` | `true` | Interpretar marcas en la descripción. |
 | `startMarks` / `endMarks` | `INI, INICIO, ..` / `F, FIN` | Marcas de inicio (corte con el anterior) y fin (corte con el siguiente). |
+| `blockStartMarks` | `B` | Marca de inicio de bloque (`casa B`): abre un bloque nuevo en el modo por bloques y no forma parte del código (`casa B` y `casa` son la misma fila). En el modo por eje solo se quita del código. |
 | `leftMarks` / `rightMarks` | `I, IZQ` / `D, DER` | Lado explícito; prevalece sobre el calculado. |
 | `splitSeries` | `false` | `CUNETA1`/`CUNETA2` producen líneas distintas. |
 | `movePointObjectsToLayer` | `false` | Mover los puntos de tipo Punto a su capa. |
@@ -190,7 +193,7 @@ También puede editarse el JSON a mano (se admiten comentarios).
 | `useDescriptionAsCode` | `false` | Proponer la propia descripción como código destino cuando no está en el catálogo (nada queda sin resolver). |
 | `singleLayer` / `singleLayerName` / `singleLayerColor` | `false` / `Planimetría` / `7` | Dibujar todas las líneas en una sola capa, ByLayer, con un solo color (7 = blanco/negro). |
 | `lineLayerPrefix`, `pointLayerPrefix`, `leftLayerSuffix`, `rightLayerSuffix` | `PL-`, `PT-`, `-IZQ`, `-DER` | Nomenclatura de capas. |
-| `closedBlockCodes` | `CASA` | Modo por bloques: códigos cuyos bloques de 3 o más puntos se dibujan como polilínea cerrada. |
+| `closedBlockCodes` | `CASA` | Modo por bloques: códigos con unión "Bloque cerrado"; el bloque se cierra solo si forma un polígono (4 o más puntos, cierre a escuadra), una fachada queda abierta. |
 | `csvColumnOrder` | `pnezd` | Modo por bloques: orden de columnas del archivo la última vez (`pnezd` o `penzd`). |
 
 El catálogo de códigos (§9.2 del planteamiento) vive en `%APPDATA%\PlanimetriaCogo\catalogo.json`,
@@ -215,34 +218,39 @@ ni modifica puntos COGO: solo deja `Polyline3d` en sus capas.
    Las filas que no se pueden interpretar (encabezado, vacías) se omiten y se cuentan; sin cota se usa 0.
 2. **Orden de columnas** `[PNEZD/PENZD]`; el último usado queda en `config.json`.
 3. **Ventana de clasificación** en modo bloques: las mismas filas, perfiles, catálogo, "Sugerir
-   similares" y edición en bloque que `PLANIMETRIA`, con dos diferencias:
-   - Columna **Bloques**: cuántas corridas de filas consecutivas forma la descripción y la más larga.
-   - Columna **Unión** en lugar de *Por lado*: `Por bloque` (una polilínea abierta por bloque),
-     `Bloque cerrado` (polígono por bloque de 3 o más puntos; se propone para los códigos de
-     `closedBlockCodes`, `CASA` por defecto, aunque el catálogo los tenga como Punto) o `Continua`
-     (todos los puntos del código en una sola línea en orden de archivo; se propone para el código del
-     eje, `EJE`).
+   similares" y edición en bloque que `PLANIMETRIA`, con estas diferencias:
+   - La marca de inicio de bloque (`B`) no crea filas: `casa B` se cuenta en la fila `casa`.
+   - Columna **Bloques**: cuántos bloques forma la descripción y el más largo.
+   - Columna **Unión** en lugar de *Por lado*: `Por bloque` (una polilínea abierta por bloque, la propuesta
+     para todos los códigos, también los que el catálogo tiene como Punto), `Bloque cerrado` (se propone para
+     `closedBlockCodes`, `CASA` por defecto; solo se cierra el bloque que forma un polígono) o `Continua` (todos
+     los puntos del código en una sola línea, sin respetar bloques; solo si se elige a mano).
    - Para **no dibujar** una descripción: desmarque *Dibujar* o elija tipo *Ignorar*. El tipo *Punto*
-     solo cuenta los puntos (postes, BM…), nunca los une.
+     solo cuenta los puntos, nunca los une.
    - **Usar nombre como código** y la casilla *Todas las líneas en una sola capa* funcionan igual que en
      `PLANIMETRIA`.
-4. **Dibujar**: se recorren los puntos en el orden del archivo. Un **bloque** es una corrida de filas
-   consecutivas con el mismo código destino (`cuneta`, `cumeta` y `CNT` unificadas en `CUNETA` forman
-   el mismo bloque); cualquier fila intermedia de otro código, aunque no se dibuje, termina el bloque.
-   Dentro de un bloque cortan las marcas de inicio/fin de la descripción y `distMax`; el salto de
-   progresiva y `offsetMax` no aplican. Los bloques de un solo punto no se dibujan y se reportan como
-   "únicos en su bloque". Con `splitSeries`, `CUNETA1` y `CUNETA2` son bloques distintos.
-5. Resumen en la línea de comandos (líneas por capa, cuántas cerradas, cortes, bloques de un punto,
-   ignorados, sin resolver) y, si está activo, el reporte en archivo. En el `.csv` del reporte la columna
-   `lado` queda vacía y `detalle` dice `cerrada` en los polígonos.
+4. **Dibujar**: el único criterio es el archivo. Se recorren los puntos en su orden y **cada bloque es un
+   elemento separado**: una corrida de filas consecutivas con el mismo código destino. El bloque termina en
+   cuanto aparece una fila de otro código (aunque no se dibuje) o una marca de inicio de bloque (`casa B` abre
+   una casa nueva). Dos bloques nunca se unen. Con "Usar nombre como código" el código es la descripción, así
+   que el bloque es exactamente la corrida de filas con la misma descripción. Dentro de un bloque solo cortan
+   las marcas de inicio/fin escritas en la descripción; `distMax` no corta: los tramos más largos se dibujan y
+   se listan como "Tramos largos dentro de un bloque". Los bloques de un solo punto no se dibujan y se reportan.
+   Con `splitSeries`, `CUNETA1` y `CUNETA2` son bloques distintos.
+5. Resumen en la línea de comandos (marcas de inicio de bloque leídas, líneas por capa, cuántas cerradas,
+   bloques cerrados que quedaron abiertos, tramos largos, bloques de un punto, ignorados, sin resolver) y, si
+   está activo, el reporte en archivo. En el `.csv` del reporte la columna `lado` queda vacía y `detalle` dice
+   `cerrada` en los polígonos.
 
-Con la muestra `GENERAL 01 - PUNTOS` (16 992 puntos) la lectura y el cálculo tardan menos de medio
-segundo y producen unas 3 100 polilíneas (1 500 de `TN`, 1 150 de `CUNETA`, 180 de `CASA`, de las que
-35 se cierran).
+Con la muestra corregida `GENERAL_01_PUNTOS_Corregido_Lineas.csv` (16 992 puntos, 4 973 marcas `B`) la lectura
+y el cálculo tardan menos de medio segundo: 100 filas en la ventana y unas 3 000 polilíneas (1 451 de `TN`,
+1 151 de `CUNETA`, 179 de `CASA`, de las que se cierra 1, el único rectángulo; las demás son fachadas). Un
+oráculo independiente verificó todos los códigos del archivo: ningún bloque se pierde ni se mezcla y cada `B`
+es el primer vértice de su línea.
 
 ## Verificación
 
-- `dotnet test PlanimetriaCogo.Tests`: 208 pruebas en verde (núcleo, configuración, perfiles,
+- `dotnet test PlanimetriaCogo.Tests`: 219 pruebas en verde (núcleo, configuración, perfiles,
   reporte, lector CSV, motor por bloques y view-models).
 - El proyecto principal (Acad/ y UI/ incluidos) se compiló en Linux contra ensamblados *stub* de
   Autodesk escritos a mano con las firmas usadas. Eso verifica sintaxis y tipos propios, **no** que

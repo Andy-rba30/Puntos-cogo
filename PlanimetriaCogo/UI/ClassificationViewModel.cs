@@ -201,7 +201,8 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
 
     /// <summary>Resumen de los parámetros vigentes (se actualiza al cerrar la ventana de parámetros).</summary>
     public string SettingsSummary => (BlockMode
-        ? $"orden del archivo · distMax {Limit(_settings.DistMax)} · marcas {(_settings.UseDescriptionMarks ? "sí" : "no")} · series {(_settings.SplitSeries ? "sí" : "no")} · " +
+        ? $"orden del archivo, un elemento por bloque · marca de bloque {(_settings.UseDescriptionMarks && _settings.BlockStartMarks.Count > 0 ? string.Join(", ", _settings.BlockStartMarks) : "no")} · " +
+          $"aviso de tramos > {Limit(_settings.DistMax)} · series {(_settings.SplitSeries ? "sí" : "no")} · " +
           $"bloques cerrados: {(_settings.ClosedBlockCodes.Count > 0 ? string.Join(", ", _settings.ClosedBlockCodes) : "ninguno")}"
         : $"offsetMax {_settings.OffsetMax:0.##} m · distMax {Limit(_settings.DistMax)} · salto PK {Limit(_settings.StationGapMax)} · " +
           $"tolEje {_settings.AxisTolerance:0.###} m · marcas {(_settings.UseDescriptionMarks ? "sí" : "no")} · series {(_settings.SplitSeries ? "sí" : "no")} · " +
@@ -272,26 +273,32 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Botón "Usar nombre como código": cada fila toma como código destino su propia descripción tal cual
-    /// (mayúsculas, minúsculas y espacios respetados), así deja de estar "sin resolver" sin pasar por el catálogo ni
-    /// por la similitud. Actúa sobre las filas marcadas en Sel. o seleccionadas en la tabla; sin selección, sobre
-    /// todas las filas sin resolver. Las vacías y numéricas quedan en Ignorar. Devuelve cuántas filas cambiaron.
+    /// Botón "Usar nombre como código": cada fila toma como código destino su propia descripción sin marcas
+    /// ("cunetq B" → "cunetq"), con mayúsculas, minúsculas y espacios respetados, sin pasar por el catálogo ni por la
+    /// similitud. Así el código es exactamente lo que se escribió en campo y cada bloque del archivo queda tal cual.
+    /// Actúa sobre las filas marcadas en Sel. o, si no hay, sobre las seleccionadas en la tabla cuando son dos o más
+    /// (una sola fila resaltada es solo la fila actual tras un clic, no una selección). Sin selección actúa sobre
+    /// todas las filas, en cualquier momento: también después de "Sugerir similares", de cargar un perfil o de editar
+    /// códigos a mano. Las filas en Ignorar solo cambian si se seleccionan; las vacías y numéricas no tienen nombre.
+    /// Devuelve cuántas filas cambiaron.
     /// </summary>
     public int UseNamesAsCodes(IEnumerable<ClassificationRowViewModel>? gridSelection = null)
     {
         var targets = Rows.Where(r => r.IsSelected).ToList();
         if (targets.Count == 0 && gridSelection != null)
-            targets = gridSelection.ToList();
+        {
+            var selected = gridSelection.Distinct().ToList();
+            if (selected.Count >= 2)
+                targets = selected;
+        }
         var explicitSelection = targets.Count > 0;
         if (!explicitSelection)
-            targets = Rows.Where(r => !r.IsResolved && r.Rule.Kind != CodeKind.Ignore).ToList();
+            targets = Rows.Where(r => r.Rule.Kind != CodeKind.Ignore).ToList();
 
         var changed = 0;
         foreach (var row in targets)
         {
-            if (row.Rule.Kind == CodeKind.Ignore)
-                continue;
-            var code = ClassificationProposer.CodeFromDescription(row.Rule.Original);
+            var code = ClassificationProposer.CodeFromDescription(row.Rule.Original, _settings);
             if (code == null || !row.SetDestinationCodeExact(code))
                 continue;
             row.IsSelected = false;
@@ -299,8 +306,8 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         }
 
         StatusMessage = changed == 0
-            ? (explicitSelection ? "Las filas seleccionadas ya usan su nombre como código." : "No hay filas sin resolver.")
-            : $"{changed} fila(s) usan ahora su propia descripción como código destino" + (explicitSelection ? "." : " (todas las que estaban sin resolver).");
+            ? (explicitSelection ? "Las filas seleccionadas ya usan su nombre como código." : "Todas las filas ya usan su nombre como código.")
+            : $"{changed} fila(s) usan ahora su propia descripción como código destino" + (explicitSelection ? " (las seleccionadas)." : ".");
         return changed;
     }
 

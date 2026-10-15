@@ -238,8 +238,9 @@ public class Commands
     /// <summary>
     /// PLANIMETRIACSV (modo por bloques): lee un archivo de puntos tal como se tomó en campo (número, norte, este,
     /// cota, descripción), abre la ventana de clasificación en modo bloques y dibuja una Polyline3d por cada bloque
-    /// de filas consecutivas con el mismo código destino, en el orden del archivo, sin eje ni lados. Los bloques de
-    /// los códigos configurados (CASA…) se cierran como polígono. No crea ni modifica CogoPoint.
+    /// de filas consecutivas con el mismo código destino, en el orden del archivo, sin eje ni lados; una marca de
+    /// inicio de bloque ("casa B") abre un bloque nuevo. Los bloques de los códigos configurados (CASA…) se cierran
+    /// solo si forman un polígono. No crea ni modifica CogoPoint.
     /// </summary>
     [CommandMethod("PLANIMETRIACSV", CommandFlags.Modal)]
     public void PlanimetriaCsv()
@@ -289,10 +290,15 @@ public class Commands
             return;
         }
 
+        var parser = new DescriptionParser(settings);
+        var blockMarks = csv.Points.Count(p => parser.Parse(p.RawDescription).IsBlockStart);
+        if (blockMarks > 0)
+            ed.WriteMessage($"\nMarcas de inicio de bloque ({string.Join(", ", settings.BlockStartMarks)}): {blockMarks}. Cada una abre un bloque nuevo; no forman parte del código.");
+
         // 3. Ventana de clasificación en modo bloques.
         var rules = ClassificationProposer.BuildBlockRules(csv.Points, catalog, settings);
         var viewModel = new ClassificationViewModel(rules, catalog, settings, new ProfileStore(config.Paths), config) { BlockMode = true };
-        viewModel.SetBlockStats(BlockStats.ByDescription(csv.Points));
+        viewModel.SetBlockStats(BlockStats.ByDescription(csv.Points, settings));
         var window = new ClassificationWindow(viewModel);
         if (AcadApp.ShowModalWindow(window) != true)
         {

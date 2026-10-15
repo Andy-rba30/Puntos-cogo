@@ -251,23 +251,26 @@ eligió lo más simple y se deja aquí para revisarlo.
     de filas consecutivas cuyo **código destino** es el mismo (la clave es el destino unificado en la
     ventana, no el texto original: `cuneta`, `cumeta` y `CNT` → `CUNETA` comparten bloque). Cualquier fila
     intermedia de otro código termina el bloque, **también** si esa fila está ignorada, sin resolver o es
-    de tipo Punto: si el topógrafo tomó un poste entre dos esquinas de casa, la casa se cortó ahí. No hay
-    eje ni lados; el lado de todas las líneas es `Centro` y la capa no lleva sufijo.
+    de tipo Punto: si el topógrafo tomó un poste entre dos esquinas de casa, la casa se cortó ahí. Una marca
+    de inicio de bloque (`casa B`, nota 48) abre siempre un bloque nuevo. Es el **único criterio**, igual para
+    todos los códigos (lo pidió el usuario): cada bloque es un elemento separado y dos bloques nunca se unen.
+    No hay eje ni lados; el lado de todas las líneas es `Centro` y la capa no lleva sufijo.
 
 41. **Unión por fila (`CodeRule.BlockJoin`)**, columna "Unión" de la ventana, solo visible en este modo:
-    `Por bloque` (polilínea abierta por bloque), `Bloque cerrado` (cerrada si tiene 3 o más puntos; con 2 se
-    dibuja abierta, un polígono de dos vértices no tiene sentido) y `Continua` (todos los puntos del código
-    en una sola polilínea en orden de archivo, para el eje `e`/`EJE` que en la muestra viene como un punto
-    por sección). Propuesta inicial: los códigos de `Settings.ClosedBlockCodes` (por defecto `CASA`) pasan a
-    tipo Línea con bloque cerrado aunque el catálogo los tenga como Punto; el código del eje se propone
-    continuo; el resto por bloque. Se guarda en los perfiles (los perfiles anteriores cargan `Por bloque`).
-    El catálogo no cambia: la unión es una decisión del modo, no del código.
+    `Por bloque` (polilínea abierta por bloque), `Bloque cerrado` (cerrada solo si el bloque forma un
+    polígono, nota 50) y `Continua` (todos los puntos del código en una sola polilínea en orden de archivo;
+    no respeta bloques, así que solo se usa si se elige a mano). Propuesta inicial: todo código resuelto es
+    Línea por bloque, aunque el catálogo lo tenga como Punto (`Q`, `Muro`, `PilonA`…: en el archivo también
+    forman bloques); los de `Settings.ClosedBlockCodes` (por defecto `CASA`), bloque cerrado. El eje ya no se
+    propone continuo: cada `e` de una sección es su propio bloque. Se guarda en los perfiles (los perfiles
+    anteriores cargan `Por bloque`). El catálogo no cambia: la unión es una decisión del modo, no del código.
 
 42. **Reutilización del motor y del reporte.** `BlockPlanimetryEngine` produce el mismo `PlanimetryResult`
     que el modo por eje, marcado con `ByBlocks`. Para no duplicar `ResolvedPoint`, `BreakRules` ni los
     formateadores, cada punto lleva una `Projection` ficticia con progresiva = posición en el archivo y
-    offset 0. Las reglas de corte dentro de un bloque son las mismas que en el modo por eje (marcas de
-    inicio/fin y `distMax`), con `stationGapMax` forzado a 0. `LineSequence.Closed` llega a
+    offset 0. Dentro de un bloque solo cortan las marcas de inicio/fin escritas en la descripción
+    (`stationGapMax` y `distMax` se fuerzan a 0): el bloque del archivo manda. Los tramos más largos que
+    `distMax` se dibujan y se listan en `PlanimetryResult.LongJumps` ("Tramos largos dentro de un bloque"). `LineSequence.Closed` llega a
     `GeometryBuilder`, que construye la `Polyline3d` cerrada. El reporte dice "abierta/cerrada" en lugar del
     lado y deja vacía la columna `lado` del `.csv`.
 
@@ -284,12 +287,13 @@ eligió lo más simple y se deja aquí para revisarlo.
     visibilidad de las columnas del `DataGrid` se fija en el código de la ventana porque las columnas no
     están en el árbol visual. La edición en bloque, "Sugerir similares", perfiles y catálogo funcionan igual.
 
-45. **Resultado con la muestra** (catálogo por defecto + "Sugerir similares", `distMax` 30 m): 3 096
-    polilíneas (TN 1 524, CUNETA 1 151, CASA 180 con 35 cerradas, EJE 47 tramos continuos cortados por
-    `distMax`), 230 objetos puntuales, 144 cortes por distancia (p. ej. un salto de 578 m dentro de un
-    bloque `tn`) y 2 995 bloques de un solo punto (`v`, `b`, `put`…), que se reportan y no se dibujan.
-    Lectura y cálculo: unos 250 ms. Para dibujar `b` o `v` como líneas longitudinales hay que usar
-    `PLANIMETRIA` con eje: en el archivo vienen como un punto por sección, no como bloques.
+45. **Resultado con la muestra corregida** (`GENERAL_01_PUNTOS_Corregido_Lineas.csv`, 16 992 puntos, 4 973
+    marcas `B`): 100 filas en la ventana (antes 149: `X B` ya no es una fila aparte). Con el catálogo, 2 986
+    polilíneas (TN 1 451, CUNETA 1 151, CASA 179 —1 cerrada, 34 fachadas abiertas—, VEREDA 76…), 0 cortes,
+    96 tramos largos avisados (el mayor, 578 m dentro de un bloque `tn`) y 4 274 bloques de un solo punto
+    (`e`, `b`, `v`… vienen como un punto por sección). Con "Usar nombre como código", 3 011 polilíneas en 55
+    códigos. Lectura y cálculo: menos de medio segundo. Para dibujar `b` o `e` como líneas longitudinales hay
+    que usar `PLANIMETRIA` con eje.
 
 ## Capa única y nombres como código
 
@@ -299,23 +303,59 @@ eligió lo más simple y se deja aquí para revisarlo.
     (el usuario lo pidió así; 7 se ve negro sobre fondo claro y se imprime negro). Solo afecta a las líneas: los
     objetos puntuales (`PT-…`) y el eje generado conservan su capa. Se edita en "Al dibujar" y en Parámetros.
 
-47. **Usar nombre como código**: `ClassificationProposer.CodeFromDescription` devuelve la descripción exacta
-    (solo recorta los extremos: `cunetq B` → `cunetq B`, `Muro  alto` conserva el doble espacio) o null si es
-    vacía o numérica. Para eso `ApplyDestination` admite `exact: true`, que no normaliza el código; el catálogo
-    se sigue consultando en forma normalizada (`casa` exacto propone tipo Punto o bloque cerrado igual que `CASA`),
-    y las comparaciones con el código del eje y con `closedBlockCodes` normalizan ambos lados. Los perfiles
-    guardan y aplican el código tal cual, y `Rebuild` ya no normaliza (el motor no propone cambio de descripción
-    cuando el código es la descripción exacta). El botón (`ClassificationViewModel.UseNamesAsCodes`) actúa sobre
-    las filas marcadas o seleccionadas y, sin selección, sobre las que están sin resolver; una fila resuelta por
-    catálogo solo cambia si se la selecciona a propósito. El parámetro `useDescriptionAsCode` hace lo mismo en la
-    carga inicial, después del catálogo (los alias conocidos siguen yendo a su código). Es la alternativa a
-    "Sugerir similares" cuando las descripciones ya son códigos válidos y la similitud agrupa de más (p. ej.
-    sufijos comunes como `… B`). Las marcas de inicio/fin siguen cortando al dibujar aunque formen parte del
-    código exacto (`cuneta f` es un código distinto de `cuneta`).
+47. **Usar nombre como código**: `ClassificationProposer.CodeFromDescription` devuelve la descripción sin sus
+    marcas (`DescriptionParser.StripMarks`: inicio, fin, lado e inicio de bloque) y el resto exacto
+    (`cunetq B` → `cunetq`, `Cuneta I` → `Cuneta`, `Muro  alto` conserva el doble espacio, `PG5394` conserva
+    los dígitos), o null si es vacía o numérica. Antes la marca quedaba dentro del código (`cunetq B` →
+    `cunetq B`), y por eso `casa B` y `casa` eran códigos distintos: el primer punto de cada bloque quedaba
+    suelto. `ApplyDestination` admite `exact: true`, que no normaliza el código; el catálogo se consulta en
+    forma normalizada y también por alias (`e` exacto toma color y lados de `EJE`). Los perfiles guardan y
+    aplican el código tal cual.
+
+    El botón (`ClassificationViewModel.UseNamesAsCodes`) actúa sobre las filas marcadas en *Sel.* o, si no hay,
+    sobre las seleccionadas en la tabla cuando son dos o más; sin selección, sobre **todas** las filas (salvo
+    Ignorar). Antes, sin selección, solo tocaba las filas sin resolver, y la `DataGrid` siempre tiene una fila
+    resaltada tras cualquier clic, que contaba como selección: después de "Sugerir similares", de un primer uso
+    o de hacer clic en la tabla, el botón ya no hacía nada (el usuario lo reportó: "solo funciona cuando es el
+    primer botón que toco"). Ahora el resultado es el mismo en cualquier momento. Una fila en Ignorar cambia
+    solo si se la marca. La celda de código ya no pasa a mayúsculas un código exacto al reabrirla
+    (`DestinationCode` ignora un texto que solo difiere en mayúsculas o espacios) y la edición en bloque copia
+    el código tal cual (`SetDestinationCodeExact`). El parámetro `useDescriptionAsCode` hace lo mismo en la
+    carga inicial para lo que el catálogo no conoce.
+
+## Marcas de inicio de bloque y criterio único (`PLANIMETRIACSV`)
+
+48. **Marca `B`** (`Settings.BlockStartMarks`, por defecto `B`, editable en Parámetros): el archivo corregido
+    del usuario marca con ` B` el primer punto de cada bloque (`cuneta B, cuneta, cuneta`). El plugin no la
+    conocía: `cuneta B` se tomaba como otra descripción (base `CUNETA B`), quedaba sin resolver o con otro
+    código, y el bloque perdía su primer punto; las casas se cerraban con sus esquinas restantes. Ahora
+    `DescriptionParser` la reconoce (`ParsedDescription.IsBlockStart`), la quita del código y
+    `DescriptionParser.RowKey` la quita de la descripción: `casa B` se cuenta en la fila `casa` (los dos
+    motores, `AxisBuilder` y la columna "Bloques" buscan la regla por esa clave). En el modo por eje la marca
+    solo se quita del código; no corta. Una lista nueva (y no `startMarks`) para que un `config.json`
+    existente la reciba con su valor por defecto y para no mezclarla con los cortes del modo por eje.
+
+49. **Bloques por código exacto.** La clave de bloque es el código destino tal cual (más la serie): con
+    "Usar nombre como código", el bloque es exactamente la corrida de filas con la misma descripción, sin
+    ningún otro criterio. Con el catálogo, las descripciones que el usuario unifica en un código (`cuneta`,
+    `CNT`) siguen compartiendo bloque; en la muestra eso solo une `ver`→`v` (7 veces) y `t`/`tm` dentro de
+    `tn` (2).
+
+50. **Cierre de bloques** (`BlockPlanimetryEngine.FormsPolygon`). En la muestra, las casas son fachadas
+    tomadas desde la calle: de 400 bloques `casa`, 221 son de un punto, 144 de dos y 35 de tres o más, casi
+    todos fachadas alineadas o en "L". Cerrarlos dibujaba diagonales que no existen. Un bloque cerrado se
+    cierra solo con 4 o más puntos, compacidad 4πA/P² ≥ 0,3 y las dos esquinas que crea el cierre entre 60° y
+    120°. En la muestra se cierra 1 (un rectángulo real) y quedan abiertos 34, que el reporte cuenta.
+
+51. **Verificación con todos los códigos.** Un oráculo independiente (Python, solo con la descripción del CSV
+    y la marca `B`) recalculó los bloques del archivo corregido y se comparó punto por punto con el motor en
+    tres escenarios (catálogo; "Usar nombre como código"; "Sugerir similares" y después "Usar nombre"): 0
+    líneas faltantes, 0 sobrantes, ningún punto `B` en medio de una línea, y con nombres las 3 011 líneas
+    coinciden exactamente con el criterio puro en los 55 códigos que dibujan.
 
 ## Pendiente de verificar en una máquina con Civil 3D 2027
 
-48. Las 208 pruebas cubren Core/, Models/, Config/ y los view-models. El plugin completo se compiló en
+52. Las 219 pruebas cubren Core/, Models/, Config/ y los view-models. El plugin completo se compiló en
     Linux contra *stubs* de Autodesk. Lo que **no** se pudo verificar:
     - Firmas reales: `Alignment.PointLocation`/`StationOffset` (parámetros `ref`),
       `CogoPoint.RawDescription` con *setter*, `Curve.GetClosestPointTo(Point3d, Vector3d, bool)`,

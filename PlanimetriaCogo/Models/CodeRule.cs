@@ -36,6 +36,12 @@ public sealed class CodeRule
     /// </summary>
     public bool Draw { get; set; } = true;
 
+    /// <summary>
+    /// Solo en el modo por bloques (PLANIMETRIACSV): cómo se unen los puntos de la fila
+    /// (una polilínea por bloque, bloque cerrado o una sola línea continua). El modo por eje lo ignora.
+    /// </summary>
+    public BlockJoin BlockJoin { get; set; } = BlockJoin.Block;
+
     public bool IsResolved => !string.IsNullOrWhiteSpace(DestinationCode);
 
     public CodeRule Clone() => (CodeRule)MemberwiseClone();

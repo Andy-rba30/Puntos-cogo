@@ -96,6 +96,7 @@ public sealed class ConfigService
         s.EndMarks ??= d.EndMarks;
         s.LeftMarks ??= d.LeftMarks;
         s.RightMarks ??= d.RightMarks;
+        s.ClosedBlockCodes ??= d.ClosedBlockCodes;
         s.ReportFolder ??= "";
         if (string.IsNullOrWhiteSpace(s.LineLayerPrefix)) s.LineLayerPrefix = d.LineLayerPrefix;
         if (string.IsNullOrWhiteSpace(s.PointLayerPrefix)) s.PointLayerPrefix = d.PointLayerPrefix;

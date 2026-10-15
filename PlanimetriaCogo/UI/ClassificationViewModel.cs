@@ -27,6 +27,7 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
     private string _filterText = "";
     private bool _showOnlyUnresolved;
     private bool _axisFromPoints;
+    private bool _blockMode;
 
     public ClassificationViewModel(IEnumerable<CodeRule> rules, CodeCatalog catalog, Settings settings)
         : this(rules, catalog, settings, null, null)
@@ -71,6 +72,8 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
 
     public IReadOnlyList<string> KindOptions => CodeKindNames.All;
 
+    public IReadOnlyList<string> JoinOptions => BlockJoinNames.All;
+
     public bool HasProfiles => _profiles != null;
 
     public bool HasCatalogStore => _config != null;
@@ -108,6 +111,33 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         set { if (_axisFromPoints != value) { _axisFromPoints = value; OnPropertyChanged(); RefreshTotals(); } }
     }
 
+    /// <summary>
+    /// true en PLANIMETRIACSV (modo por bloques): sin eje ni lados; la columna "Unión" decide cómo se une cada
+    /// código y las acciones sobre CogoPoint no aplican.
+    /// </summary>
+    public bool BlockMode
+    {
+        get => _blockMode;
+        set
+        {
+            if (_blockMode == value)
+                return;
+            _blockMode = value;
+            foreach (var row in Rows)
+                row.BlockMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SettingsSummary));
+            RefreshTotals();
+        }
+    }
+
+    /// <summary>Rellena la columna "Bloques" (modo por bloques) a partir de las estadísticas por descripción original.</summary>
+    public void SetBlockStats(IReadOnlyDictionary<string, BlockStats> stats)
+    {
+        foreach (var row in Rows)
+            row.BlockInfo = stats.TryGetValue(row.Rule.Original, out var info) ? info.ToString() : "";
+    }
+
     // ---- Opciones de dibujo (se guardan en config.json al pulsar Dibujar) ----
 
     public bool UpdateDescriptionsInDrawing
@@ -135,10 +165,12 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Resumen de los parámetros vigentes (se actualiza al cerrar la ventana de parámetros).</summary>
-    public string SettingsSummary =>
-        $"offsetMax {_settings.OffsetMax:0.##} m · distMax {Limit(_settings.DistMax)} · salto PK {Limit(_settings.StationGapMax)} · " +
-        $"tolEje {_settings.AxisTolerance:0.###} m · marcas {(_settings.UseDescriptionMarks ? "sí" : "no")} · series {(_settings.SplitSeries ? "sí" : "no")} · " +
-        $"orden {(_settings.Order == PointOrder.Station ? "progresiva" : "número")}";
+    public string SettingsSummary => BlockMode
+        ? $"orden del archivo · distMax {Limit(_settings.DistMax)} · marcas {(_settings.UseDescriptionMarks ? "sí" : "no")} · series {(_settings.SplitSeries ? "sí" : "no")} · " +
+          $"bloques cerrados: {(_settings.ClosedBlockCodes.Count > 0 ? string.Join(", ", _settings.ClosedBlockCodes) : "ninguno")}"
+        : $"offsetMax {_settings.OffsetMax:0.##} m · distMax {Limit(_settings.DistMax)} · salto PK {Limit(_settings.StationGapMax)} · " +
+          $"tolEje {_settings.AxisTolerance:0.###} m · marcas {(_settings.UseDescriptionMarks ? "sí" : "no")} · series {(_settings.SplitSeries ? "sí" : "no")} · " +
+          $"orden {(_settings.Order == PointOrder.Station ? "progresiva" : "número")}";
 
     private static string Limit(double value) => value > 0 ? $"{value:0.##} m" : "sin límite";
 
@@ -266,6 +298,7 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         nameof(ClassificationRowViewModel.LayerBase) => "Capa",
         nameof(ClassificationRowViewModel.ColorIndex) => "Color",
         nameof(ClassificationRowViewModel.Draw) => "Dibujar",
+        nameof(ClassificationRowViewModel.BlockJoinLabel) => "Unión",
         _ => propertyName
     };
 
@@ -277,7 +310,8 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         {
             var rule = row.Rule;
             if (rule.DestinationCode == initial.DestinationCode && rule.Kind == initial.Kind && rule.SplitBySide == initial.SplitBySide &&
-                rule.LayerBase == initial.LayerBase && rule.ColorIndex == initial.ColorIndex && rule.Draw == initial.Draw)
+                rule.LayerBase == initial.LayerBase && rule.ColorIndex == initial.ColorIndex && rule.Draw == initial.Draw &&
+                rule.BlockJoin == initial.BlockJoin)
                 continue;
             rule.DestinationCode = initial.DestinationCode;
             rule.Kind = initial.Kind;
@@ -285,6 +319,7 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
             rule.LayerBase = initial.LayerBase;
             rule.ColorIndex = initial.ColorIndex;
             rule.Draw = initial.Draw;
+            rule.BlockJoin = initial.BlockJoin;
             row.RaiseAll();
             changed++;
         }

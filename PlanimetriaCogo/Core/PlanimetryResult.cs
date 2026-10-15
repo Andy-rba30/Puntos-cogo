@@ -33,7 +33,7 @@ public sealed record DescriptionChange(SurveyPoint Point, string NewDescription)
 /// <summary>Secuencia lista para dibujar como una Polyline3d.</summary>
 public sealed class LineSequence
 {
-    public LineSequence(string code, Side side, int? series, string layer, short colorIndex, IReadOnlyList<ResolvedPoint> points)
+    public LineSequence(string code, Side side, int? series, string layer, short colorIndex, IReadOnlyList<ResolvedPoint> points, bool closed = false)
     {
         Code = code;
         Side = side;
@@ -41,6 +41,7 @@ public sealed class LineSequence
         Layer = layer;
         ColorIndex = colorIndex;
         Points = points;
+        Closed = closed;
     }
 
     public string Code { get; }
@@ -49,6 +50,9 @@ public sealed class LineSequence
     public string Layer { get; }
     public short ColorIndex { get; }
     public IReadOnlyList<ResolvedPoint> Points { get; }
+
+    /// <summary>true = polilínea cerrada (bloque cerrado del modo por bloques).</summary>
+    public bool Closed { get; }
 
     public uint FirstNumber => Points[0].Point.Number;
     public uint LastNumber => Points[Points.Count - 1].Point.Number;
@@ -81,6 +85,23 @@ public sealed class PlanimetryResult
 
     /// <summary>Descripción del eje usado (nombre del alineamiento, polilínea o "N puntos EJE") para el reporte.</summary>
     public string AxisDescription { get; set; } = "";
+
+    /// <summary>true cuando lo produjo el modo por bloques (sin eje ni lados; la progresiva es la posición en el archivo).</summary>
+    public bool ByBlocks { get; set; }
+
+    /// <summary>Origen de los puntos en el modo por bloques (nombre del archivo CSV) para el reporte.</summary>
+    public string SourceDescription { get; set; } = "";
+
+    public int ClosedLines
+    {
+        get
+        {
+            var n = 0;
+            foreach (var line in Lines)
+                if (line.Closed) n++;
+            return n;
+        }
+    }
 
     public int PointsInLines
     {

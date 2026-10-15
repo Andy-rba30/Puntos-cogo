@@ -240,13 +240,66 @@ eligió lo más simple y se deja aquí para revisarlo.
     el `.csproj` copia el DLL a `bundle\PlanimetriaCogo.bundle\Contents\`; `install.ps1` copia el
     bundle a `%APPDATA%\Autodesk\ApplicationPlugins`.
 
+---
+
+# Notas de implementación (modo por bloques, `PLANIMETRIACSV`)
+
+40. **Qué es un bloque.** El archivo de campo (muestra `GENERAL 01 - PUNTOS`: 16 992 filas, número, norte,
+    este, cota, descripción) trae los puntos en el orden de toma, y el topógrafo levanta cada objeto en
+    filas consecutivas: `casa, casa, casa, casa`, `cuneta, cuneta, cuneta` (sección de la cuneta),
+    `ver, ver, ver`. El modo por bloques recorre las filas en ese orden y forma un bloque con cada corrida
+    de filas consecutivas cuyo **código destino** es el mismo (la clave es el destino unificado en la
+    ventana, no el texto original: `cuneta`, `cumeta` y `CNT` → `CUNETA` comparten bloque). Cualquier fila
+    intermedia de otro código termina el bloque, **también** si esa fila está ignorada, sin resolver o es
+    de tipo Punto: si el topógrafo tomó un poste entre dos esquinas de casa, la casa se cortó ahí. No hay
+    eje ni lados; el lado de todas las líneas es `Centro` y la capa no lleva sufijo.
+
+41. **Unión por fila (`CodeRule.BlockJoin`)**, columna "Unión" de la ventana, solo visible en este modo:
+    `Por bloque` (polilínea abierta por bloque), `Bloque cerrado` (cerrada si tiene 3 o más puntos; con 2 se
+    dibuja abierta, un polígono de dos vértices no tiene sentido) y `Continua` (todos los puntos del código
+    en una sola polilínea en orden de archivo, para el eje `e`/`EJE` que en la muestra viene como un punto
+    por sección). Propuesta inicial: los códigos de `Settings.ClosedBlockCodes` (por defecto `CASA`) pasan a
+    tipo Línea con bloque cerrado aunque el catálogo los tenga como Punto; el código del eje se propone
+    continuo; el resto por bloque. Se guarda en los perfiles (los perfiles anteriores cargan `Por bloque`).
+    El catálogo no cambia: la unión es una decisión del modo, no del código.
+
+42. **Reutilización del motor y del reporte.** `BlockPlanimetryEngine` produce el mismo `PlanimetryResult`
+    que el modo por eje, marcado con `ByBlocks`. Para no duplicar `ResolvedPoint`, `BreakRules` ni los
+    formateadores, cada punto lleva una `Projection` ficticia con progresiva = posición en el archivo y
+    offset 0. Las reglas de corte dentro de un bloque son las mismas que en el modo por eje (marcas de
+    inicio/fin y `distMax`), con `stationGapMax` forzado a 0. `LineSequence.Closed` llega a
+    `GeometryBuilder`, que construye la `Polyline3d` cerrada. El reporte dice "abierta/cerrada" en lugar del
+    lado y deja vacía la columna `lado` del `.csv`.
+
+43. **Lector CSV (`CsvPointReader`)**: separador por frecuencia en las primeras 20 filas (empate: `;`,
+    tabulador, `,`), coma decimal admitida cuando el separador no es la coma, campos entre comillas, columnas
+    sobrantes unidas a la descripción con un espacio. Las filas no interpretables se omiten y se listan (las
+    10 primeras) en la línea de comandos; sin cota se usa 0 y se cuenta; un número no entero (`P12`) se
+    reemplaza por la posición en el archivo (se conserva en `Name`). `SurveyPoint.Sequence` guarda la
+    posición y es la clave de orden del modo; en el modo por eje vale 0 y no se usa.
+
+44. **Ventana compartida.** `ClassificationViewModel.BlockMode` oculta "Por lado" y las acciones sobre
+    CogoPoint (no hay puntos en el dibujo que modificar, aunque las casillas sigan guardadas en
+    `config.json`), muestra "Bloques" y "Unión", y cambia la explicación y el resumen de parámetros. La
+    visibilidad de las columnas del `DataGrid` se fija en el código de la ventana porque las columnas no
+    están en el árbol visual. La edición en bloque, "Sugerir similares", perfiles y catálogo funcionan igual.
+
+45. **Resultado con la muestra** (catálogo por defecto + "Sugerir similares", `distMax` 30 m): 3 096
+    polilíneas (TN 1 524, CUNETA 1 151, CASA 180 con 35 cerradas, EJE 47 tramos continuos cortados por
+    `distMax`), 230 objetos puntuales, 144 cortes por distancia (p. ej. un salto de 578 m dentro de un
+    bloque `tn`) y 2 995 bloques de un solo punto (`v`, `b`, `put`…), que se reportan y no se dibujan.
+    Lectura y cálculo: unos 250 ms. Para dibujar `b` o `v` como líneas longitudinales hay que usar
+    `PLANIMETRIA` con eje: en el archivo vienen como un punto por sección, no como bloques.
+
 ## Pendiente de verificar en una máquina con Civil 3D 2027
 
-39. Las 161 pruebas cubren Core/, Models/, Config/ y los view-models. El plugin completo se compiló en
+46. Las 198 pruebas cubren Core/, Models/, Config/ y los view-models. El plugin completo se compiló en
     Linux contra *stubs* de Autodesk. Lo que **no** se pudo verificar:
     - Firmas reales: `Alignment.PointLocation`/`StationOffset` (parámetros `ref`),
       `CogoPoint.RawDescription` con *setter*, `Curve.GetClosestPointTo(Point3d, Vector3d, bool)`,
-      `Application.ShowModalWindow`, `CogoPointCollection` enumerable de `ObjectId`.
+      `Application.ShowModalWindow`, `CogoPointCollection` enumerable de `ObjectId`,
+      `Editor.GetFileNameForOpen(PromptOpenFileOptions)` y `Polyline3d(Poly3dType, Point3dCollection, bool closed)`
+      (modo por bloques; este último no se compiló ni contra *stubs*).
     - Comportamiento de la `DataGrid` (edición de celdas, ordenación con `VisibleRows`) y de los
       diálogos de archivo dentro de Civil 3D.
     - Que `PackageContents.xml` sea aceptado por la serie real de Civil 3D 2027.

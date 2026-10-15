@@ -45,9 +45,22 @@ public static class ClassificationProposer
     }
 
     /// <summary>
-    /// Asigna un código destino (se normaliza) y vuelve a proponer tipo, lados, color y capa.
+    /// Filas iniciales para el modo por bloques (PLANIMETRIACSV): las mismas que <see cref="BuildRules"/>, con la
+    /// unión propuesta por <see cref="ApplyBlockProposal"/>.
     /// </summary>
-    public static void ApplyDestination(CodeRule rule, string? destination, CodeCatalog catalog, Settings settings)
+    public static List<CodeRule> BuildBlockRules(IEnumerable<SurveyPoint> points, CodeCatalog catalog, Settings settings)
+    {
+        var rules = BuildRules(points, catalog, settings);
+        foreach (var rule in rules)
+            ApplyBlockProposal(rule, settings);
+        return rules;
+    }
+
+    /// <summary>
+    /// Asigna un código destino (se normaliza) y vuelve a proponer tipo, lados, color y capa.
+    /// Con <paramref name="blockMode"/> se propone además la unión por bloques (<see cref="ApplyBlockProposal"/>).
+    /// </summary>
+    public static void ApplyDestination(CodeRule rule, string? destination, CodeCatalog catalog, Settings settings, bool blockMode = false)
     {
         var code = DescriptionNormalizer.Normalize(destination);
         rule.DestinationCode = code;
@@ -56,6 +69,7 @@ public static class ClassificationProposer
         {
             rule.Kind = rule.Kind == CodeKind.Ignore ? CodeKind.Ignore : CodeKind.Line;
             rule.SplitBySide = true;
+            rule.BlockJoin = BlockJoin.Block;
             rule.LayerBase = "";
             return;
         }
@@ -73,6 +87,37 @@ public static class ClassificationProposer
             rule.SplitBySide = true;
         }
 
+        if (blockMode)
+            ApplyBlockProposal(rule, settings);
+        rule.LayerBase = LayerNames.ProposeBase(rule, settings);
+    }
+
+    /// <summary>
+    /// Unión propuesta para el modo por bloques:
+    /// <list type="bullet">
+    ///   <item>Código en <see cref="Settings.ClosedBlockCodes"/> (CASA…): tipo Línea con bloque cerrado, aunque el catálogo lo tenga como Punto.</item>
+    ///   <item>Código del eje (<see cref="Settings.AxisCode"/>): línea continua con todos sus puntos en orden de archivo.</item>
+    ///   <item>Resto: una polilínea abierta por bloque.</item>
+    /// </list>
+    /// </summary>
+    public static void ApplyBlockProposal(CodeRule rule, Settings settings)
+    {
+        if (!rule.IsResolved || rule.Kind == CodeKind.Ignore)
+        {
+            rule.BlockJoin = BlockJoin.Block;
+            return;
+        }
+
+        var closed = settings.ClosedBlockCodes.Select(DescriptionNormalizer.Normalize);
+        if (closed.Contains(rule.DestinationCode, StringComparer.Ordinal))
+        {
+            rule.Kind = CodeKind.Line;
+            rule.BlockJoin = BlockJoin.ClosedBlock;
+        }
+        else if (rule.DestinationCode == DescriptionNormalizer.Normalize(settings.AxisCode))
+            rule.BlockJoin = BlockJoin.Continuous;
+        else
+            rule.BlockJoin = BlockJoin.Block;
         rule.LayerBase = LayerNames.ProposeBase(rule, settings);
     }
 

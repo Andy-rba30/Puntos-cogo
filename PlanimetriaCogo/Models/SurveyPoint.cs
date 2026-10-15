@@ -24,5 +24,11 @@ public sealed class SurveyPoint
     /// </summary>
     public string SourceId { get; init; } = "";
 
+    /// <summary>
+    /// Posición en el archivo de origen (1 = primera fila leída), para el modo por bloques, que respeta el
+    /// orden de toma en campo. 0 cuando el punto viene del dibujo (el orden lo da el número de punto).
+    /// </summary>
+    public int Sequence { get; init; }
+
     public override string ToString() => $"#{Number} '{RawDescription}' ({X:0.000}, {Y:0.000}, {Z:0.000})";
 }

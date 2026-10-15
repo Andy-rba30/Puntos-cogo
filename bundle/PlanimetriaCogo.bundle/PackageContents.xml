@@ -13,7 +13,7 @@
                     ProductType="Application"
                     Name="PlanimetriaCogo"
                     AppVersion="1.0.0"
-                    Description="Planimetría por lados desde puntos COGO: une con Polyline3d los puntos de igual descripción separando izquierda y derecha respecto a un eje."
+                    Description="Planimetría desde puntos COGO: une con Polyline3d los puntos de igual descripción separando izquierda y derecha respecto a un eje, o por bloques en el orden de campo desde un archivo CSV."
                     Author="Puntos-cogo"
                     ProductCode="{7D1C2E54-9B3A-4F7E-8C21-5A0E6B3D9F10}"
                     UpgradeCode="{A3F5B8C1-2D4E-4F60-9B7A-1C8D2E3F4A5B}">
@@ -30,6 +30,7 @@
         <Command Global="PLANIMETRIA" Local="PLANIMETRIA" />
         <Command Global="PLANIMETRIACONFIG" Local="PLANIMETRIACONFIG" />
         <Command Global="PLANIMETRIAEJE" Local="PLANIMETRIAEJE" />
+        <Command Global="PLANIMETRIACSV" Local="PLANIMETRIACSV" />
       </Commands>
     </ComponentEntry>
   </Components>

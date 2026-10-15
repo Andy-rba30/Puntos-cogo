@@ -2,9 +2,11 @@
 
 Plugin en C# para **Autodesk Civil 3D 2027** que genera la planimetría de un levantamiento:
 une con `Polyline3d` los puntos COGO de igual descripción, separando lado izquierdo y derecho
-respecto a un eje. El diseño está en [PLANTEAMIENTO.md](PLANTEAMIENTO.md); este repositorio
-implementa las **cuatro fases** de la sección 10.4. Las decisiones tomadas durante la
-implementación están en [NOTAS_IMPLEMENTACION.md](NOTAS_IMPLEMENTACION.md).
+respecto a un eje (`PLANIMETRIA`), o bien dibuja la planimetría **por bloques** desde un archivo
+CSV tal como se tomó en campo, sin eje (`PLANIMETRIACSV`). El diseño está en
+[PLANTEAMIENTO.md](PLANTEAMIENTO.md); este repositorio implementa las **cuatro fases** de la
+sección 10.4 más el modo por bloques. Las decisiones tomadas durante la implementación están en
+[NOTAS_IMPLEMENTACION.md](NOTAS_IMPLEMENTACION.md).
 
 | Fase | Contenido | Estado |
 |------|-----------|--------|
@@ -12,6 +14,7 @@ implementación están en [NOTAS_IMPLEMENTACION.md](NOTAS_IMPLEMENTACION.md).
 | 2 | Reglas de corte configurables (distancia, salto de progresiva, marcas de inicio/fin, series), perfiles JSON, eje desde puntos `EJE`, opción de capa para objetos puntuales, parámetros y catálogo en JSON. | Hecho |
 | 3 | Eje por polilínea, reporte a archivo (.txt y .csv), opción "actualizar descripciones en el dibujo". | Hecho |
 | 4 | Pruebas unitarias del núcleo (161), bundle de autocarga, pulido de la ventana (filtro, perfiles, catálogo, parámetros, restablecer). | Hecho |
+| 5 | Modo por bloques: comando `PLANIMETRIACSV` que lee el CSV de campo y dibuja una `Polyline3d` por cada bloque de puntos consecutivos con la misma descripción, en el orden de toma, con bloques cerrados (casas) y línea continua (eje) configurables. | Hecho |
 
 > Todo se compiló y probó sin Civil 3D (ver [Verificación](#verificación)). Falta compilar y probar
 > en una máquina con Civil 3D 2027 instalado.
@@ -21,10 +24,11 @@ implementación están en [NOTAS_IMPLEMENTACION.md](NOTAS_IMPLEMENTACION.md).
 ```
 PlanimetriaCogo.sln
 ├─ PlanimetriaCogo/                 biblioteca del plugin (net10.0-windows, x64, WPF)
-│  ├─ Commands.cs                   comandos PLANIMETRIA, PLANIMETRIACONFIG, PLANIMETRIAEJE
+│  ├─ Commands.cs                   comandos PLANIMETRIA, PLANIMETRIACONFIG, PLANIMETRIAEJE, PLANIMETRIACSV
 │  ├─ Models/                       SurveyPoint, Side, CodeKind, CodeRule, Settings
 │  ├─ Core/                         lógica sin AutoCAD: normalización, parser de marcas, similitud,
-│  │                                eje muestreado, continuidad, agrupación, cortes, motor, reporte
+│  │                                eje muestreado, continuidad, agrupación, cortes, motor, reporte,
+│  │                                lector CSV y motor por bloques
 │  ├─ Config/                       config.json, catalogo.json, perfiles, archivos de reporte
 │  ├─ Acad/                         integración: lectura de CogoPoint, ejes (Alignment, polilínea),
 │  │                                capas, Polyline3d, modificación opcional de puntos, reporte
@@ -176,6 +180,8 @@ También puede editarse el JSON a mano (se admiten comentarios).
 | `updateDescriptionsInDrawing` | `false` | Reescribir descripciones con el código destino (conserva marcas y serie). |
 | `reportToFile` / `reportFolder` | `false` / vacío | Reporte en archivo; vacío = carpeta del DWG. |
 | `lineLayerPrefix`, `pointLayerPrefix`, `leftLayerSuffix`, `rightLayerSuffix` | `PL-`, `PT-`, `-IZQ`, `-DER` | Nomenclatura de capas. |
+| `closedBlockCodes` | `CASA` | Modo por bloques: códigos cuyos bloques de 3 o más puntos se dibujan como polilínea cerrada. |
+| `csvColumnOrder` | `pnezd` | Modo por bloques: orden de columnas del archivo la última vez (`pnezd` o `penzd`). |
 
 El catálogo de códigos (§9.2 del planteamiento) vive en `%APPDATA%\PlanimetriaCogo\catalogo.json`,
 que se crea con la tabla por defecto la primera vez. Cada entrada tiene `code`, `kind`
@@ -187,10 +193,45 @@ Construye el eje desde los puntos `EJE` (y alias) ordenados por número y lo dib
 `Polyline3d` en `PL-EJE-GENERADO`, sin crear `Alignment`. Útil para revisarlo, usarlo con la opción
 `Polilinea` de `PLANIMETRIA` o convertirlo en alineamiento con las herramientas de Civil 3D.
 
+### `PLANIMETRIACSV` (modo por bloques)
+
+Dibuja la planimetría directamente desde el archivo de puntos de campo, **respetando los bloques, el
+orden y la descripción** tal como los tomó el topógrafo. No necesita eje ni calcula lados, y no crea
+ni modifica puntos COGO: solo deja `Polyline3d` en sus capas.
+
+1. **Archivo**: CSV o texto con columnas número, norte, este, cota, descripción (`PNEZD`, el formato de
+   Civil 3D y de la muestra del proyecto) o número, este, norte, cota, descripción (`PENZD`). El
+   separador se detecta solo (coma, punto y coma o tabulador; con punto y coma se admite coma decimal).
+   Las filas que no se pueden interpretar (encabezado, vacías) se omiten y se cuentan; sin cota se usa 0.
+2. **Orden de columnas** `[PNEZD/PENZD]`; el último usado queda en `config.json`.
+3. **Ventana de clasificación** en modo bloques: las mismas filas, perfiles, catálogo, "Sugerir
+   similares" y edición en bloque que `PLANIMETRIA`, con dos diferencias:
+   - Columna **Bloques**: cuántas corridas de filas consecutivas forma la descripción y la más larga.
+   - Columna **Unión** en lugar de *Por lado*: `Por bloque` (una polilínea abierta por bloque),
+     `Bloque cerrado` (polígono por bloque de 3 o más puntos; se propone para los códigos de
+     `closedBlockCodes`, `CASA` por defecto, aunque el catálogo los tenga como Punto) o `Continua`
+     (todos los puntos del código en una sola línea en orden de archivo; se propone para el código del
+     eje, `EJE`).
+   - Para **no dibujar** una descripción: desmarque *Dibujar* o elija tipo *Ignorar*. El tipo *Punto*
+     solo cuenta los puntos (postes, BM…), nunca los une.
+4. **Dibujar**: se recorren los puntos en el orden del archivo. Un **bloque** es una corrida de filas
+   consecutivas con el mismo código destino (`cuneta`, `cumeta` y `CNT` unificadas en `CUNETA` forman
+   el mismo bloque); cualquier fila intermedia de otro código, aunque no se dibuje, termina el bloque.
+   Dentro de un bloque cortan las marcas de inicio/fin de la descripción y `distMax`; el salto de
+   progresiva y `offsetMax` no aplican. Los bloques de un solo punto no se dibujan y se reportan como
+   "únicos en su bloque". Con `splitSeries`, `CUNETA1` y `CUNETA2` son bloques distintos.
+5. Resumen en la línea de comandos (líneas por capa, cuántas cerradas, cortes, bloques de un punto,
+   ignorados, sin resolver) y, si está activo, el reporte en archivo. En el `.csv` del reporte la columna
+   `lado` queda vacía y `detalle` dice `cerrada` en los polígonos.
+
+Con la muestra `GENERAL 01 - PUNTOS` (16 992 puntos) la lectura y el cálculo tardan menos de medio
+segundo y producen unas 3 100 polilíneas (1 500 de `TN`, 1 150 de `CUNETA`, 180 de `CASA`, de las que
+35 se cierran).
+
 ## Verificación
 
-- `dotnet test PlanimetriaCogo.Tests`: 161 pruebas en verde (núcleo, configuración, perfiles,
-  reporte y view-models).
+- `dotnet test PlanimetriaCogo.Tests`: 198 pruebas en verde (núcleo, configuración, perfiles,
+  reporte, lector CSV, motor por bloques y view-models).
 - El proyecto principal (Acad/ y UI/ incluidos) se compiló en Linux contra ensamblados *stub* de
   Autodesk escritos a mano con las firmas usadas. Eso verifica sintaxis y tipos propios, **no** que
   las firmas coincidan con la API real de Civil 3D 2027: hay que compilar y probar en una máquina

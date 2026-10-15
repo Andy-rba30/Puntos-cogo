@@ -103,7 +103,9 @@ public sealed class PlanimetryEngine
         foreach (var group in LineGrouper.Group(resolved))
         {
             var rule = ruleByCode[group.Code];
-            var layer = LayerNames.ForLine(rule.LayerBase, group.Side, rule.SplitBySide, _settings);
+            // Si el usuario dejó la capa vacía, se usa la propuesta por defecto.
+            var layerBase = string.IsNullOrWhiteSpace(rule.LayerBase) ? LayerNames.ProposeBase(rule, _settings) : rule.LayerBase;
+            var layer = LayerNames.ForLine(layerBase, group.Side, rule.SplitBySide, _settings);
 
             foreach (var sequence in BreakRules.Split(group, _settings.DistMax, result.Cuts))
             {

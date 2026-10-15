@@ -165,4 +165,16 @@ public class PlanimetryEngineTests
         Assert.Empty(result.Lines);
         Assert.Equal(2, result.IgnoredCodes["TN"]);
     }
+
+    [Fact]
+    public void EmptyLayerBase_FallsBackToProposedLayer()
+    {
+        var points = new[] { P(1, "TN", 10, 5), P(2, "TN", 20, 5) };
+        var rules = ClassificationProposer.BuildRules(points, CodeCatalog.Default, DefaultSettings);
+        rules[0].LayerBase = "";
+
+        var result = new PlanimetryEngine(DefaultSettings).Run(points, rules, TestAxes.StraightX());
+
+        Assert.Equal("PL-TN-IZQ", Assert.Single(result.Lines).Layer);
+    }
 }

@@ -112,7 +112,7 @@ eligió lo más simple y se deja aquí para revisarlo.
 
 ## Verificación sin Civil 3D
 
-21. Las 76 pruebas xUnit cubren Core/ y Models/. El proyecto principal (Acad/ y UI/ incluidos)
+21. Las 77 pruebas xUnit cubren Core/ y Models/. El proyecto principal (Acad/ y UI/ incluidos)
     se compiló en Linux contra ensamblados *stub* de Autodesk escritos a mano con las firmas
     usadas (`PointLocation`/`StationOffset` con parámetros `ref`, `ShowModalWindow`,
     `CogoPointCollection`, etc.). Eso verifica sintaxis y tipos propios, **no** que las firmas

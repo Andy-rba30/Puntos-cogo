@@ -283,3 +283,73 @@ Contiene 17 014 `CgPoint` y **ningún `Alignment`**: el eje vive solo en el DWG.
   80 m para TN; `distMax` 30 m; `tolEje` 0.15 m. Se ajustan en el JSON.
 - Con 17 000 puntos el cálculo de `StationOffset` por punto es rápido (segundos), pero
   la creación de entidades se hará en una sola transacción para no degradar el dibujo.
+
+---
+
+## 10. Decisiones finales (segunda ronda de respuestas)
+
+### 10.1 El plugin no deja rastro en el dibujo
+
+Cualquier dato auxiliar que el plugin necesite (grupos de puntos, eje temporal construido
+desde los puntos `e`, tablas de clasificación, parámetros) **vive en memoria** durante la
+ejecución del comando. Lo único que queda en el dibujo son las `Polyline3d` en sus capas.
+
+Reglas:
+
+- No se crean `PointGroup` ni `Alignment` permanentes. Si el usuario elige "construir eje
+  desde puntos `e`", ese eje se usa internamente y se borra al terminar, salvo que marque
+  la opción "conservar eje generado".
+- No se modifica la descripción, el número ni la cota de ningún `CogoPoint`.
+- La unificación de códigos (§10.2) es un **mapa interno**, no una reescritura de los
+  puntos. Existe una casilla opcional "actualizar descripciones en el dibujo", apagada por
+  defecto, para quien sí quiera limpiar el levantamiento.
+- Todo se ejecuta en una sola transacción: un `Deshacer` revierte el comando completo.
+
+### 10.2 Ventana de clasificación de descripciones (pasa a fase 1)
+
+Antes de dibujar, el comando abre una ventana (WPF) con **todas** las descripciones
+encontradas en los puntos seleccionados. Es el paso donde el usuario unifica y decide.
+
+Contenido de la ventana:
+
+| Columna | Descripción |
+|---------|-------------|
+| Descripción original | Tal como está en el punto (`cumeta`, `v`, `BRD`…). |
+| Cantidad | Número de puntos con esa descripción. |
+| Código destino | Editable con lista desplegable. Aquí se unifica: `cumeta` → `CUNETA`. |
+| Tipo | `Línea` / `Punto` / `Ignorar`. |
+| Capa | Se propone `PL-<código>` o `PT-<código>`; editable. |
+| Color | Opcional, por capa. |
+
+Funciones de la ventana:
+
+- **Sugerir similares**: agrupa automáticamente descripciones parecidas (sin distinguir
+  mayúsculas, distancia de edición ≤ 2, prefijos como `v` → `ver` → `vereda`) y propone
+  un código destino común. El usuario acepta, cambia o deshace cada sugerencia.
+- **Unificar selección**: marca varias filas y asigna a todas un mismo código destino.
+- **Tipo por defecto**: lo que tiene pocos puntos y nombres de objeto (`casa`, `Muro`,
+  `BM`) se propone como `Punto`; el resto como `Línea`. Siempre editable.
+- **Guardar / cargar perfil**: el mapa resultante se guarda en JSON
+  (`%APPDATA%\PlanimetriaCogo\perfiles\<nombre>.json`) para reutilizarlo en otros DWG del
+  mismo proyecto sin repetir el trabajo.
+- **Vista previa de conteo**: cuántos puntos quedarán como líneas, puntos, ignorados y
+  sin resolver antes de pulsar "Dibujar".
+
+Para los códigos tipo `Punto` el plugin solo mueve el punto a la capa indicada (opción) o
+no hace nada; nunca los une.
+
+### 10.3 Plataforma
+
+Se trabajará con **.NET 10** como indica el usuario para Civil 3D 2027. El `.csproj`
+mantiene el `TargetFramework` en una sola propiedad por si la instalación real difiere.
+
+### 10.4 Fases actualizadas
+
+| Fase | Alcance |
+|------|---------|
+| 1 | Comando `PLANIMETRIA`: selección de `Alignment` + puntos, ventana de clasificación con sugerencia de similares, lado por `StationOffset`, orden lado + número, modo continuidad, `Polyline3d` por capa, reporte en línea de comandos. |
+| 2 | Reglas de corte configurables, perfiles JSON guardados/cargados, eje desde puntos `e` (temporal), opción de capa para objetos puntuales. |
+| 3 | Eje por `Polyline`, reporte a archivo, opción "actualizar descripciones en el dibujo". |
+| 4 | Pruebas unitarias del núcleo, bundle de autocarga, pulido de la ventana. |
+
+Con esto el planteamiento queda cerrado y listo para pasar a la programación de la fase 1.

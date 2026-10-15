@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bundle de autocarga de PlanimetriaCogo (fase 4).
+  Copie la carpeta PlanimetriaCogo.bundle completa a %APPDATA%\Autodesk\ApplicationPlugins\
+  (o ejecute bundle\install.ps1). Civil 3D carga el DLL la primera vez que se escribe uno de los
+  comandos (LoadOnCommandInvocation), sin NETLOAD.
+
+  SeriesMin/SeriesMax: versión interna de AutoCAD. 2025 = R25.0, 2026 = R25.1, 2027 = R26.0.
+  Si su instalación de Civil 3D 2027 reporta otra serie (variable ACADVER), ajuste el rango.
+-->
+<ApplicationPackage SchemaVersion="1.0"
+                    AutodeskProduct="Civil 3D"
+                    ProductType="Application"
+                    Name="PlanimetriaCogo"
+                    AppVersion="1.0.0"
+                    Description="Planimetría por lados desde puntos COGO: une con Polyline3d los puntos de igual descripción separando izquierda y derecha respecto a un eje."
+                    Author="Puntos-cogo"
+                    ProductCode="{7D1C2E54-9B3A-4F7E-8C21-5A0E6B3D9F10}"
+                    UpgradeCode="{A3F5B8C1-2D4E-4F60-9B7A-1C8D2E3F4A5B}">
+  <CompanyDetails Name="Puntos-cogo" />
+  <Components Description="Civil 3D 2027 (AutoCAD R26.0, .NET 10, x64)">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R25.0" SeriesMax="R26.9" />
+    <ComponentEntry AppName="PlanimetriaCogo"
+                    Version="1.0.0"
+                    ModuleName="./Contents/PlanimetriaCogo.dll"
+                    AppDescription="Planimetría por lados desde puntos COGO"
+                    LoadOnCommandInvocation="True"
+                    LoadOnAutoCADStartup="False">
+      <Commands GroupName="PLANIMETRIACOGO">
+        <Command Global="PLANIMETRIA" Local="PLANIMETRIA" />
+        <Command Global="PLANIMETRIACONFIG" Local="PLANIMETRIACONFIG" />
+        <Command Global="PLANIMETRIAEJE" Local="PLANIMETRIAEJE" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

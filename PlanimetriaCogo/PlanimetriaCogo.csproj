@@ -53,4 +53,21 @@
     </Reference>
   </ItemGroup>
 
+  <!--
+    Fase 4: en Release se copia el DLL al bundle de autocarga (bundle\PlanimetriaCogo.bundle\Contents\).
+    Instalación: bundle\install.ps1 o copiar la carpeta .bundle a %APPDATA%\Autodesk\ApplicationPlugins\.
+  -->
+  <PropertyGroup>
+    <BundleContentsDir>$(MSBuildProjectDirectory)\..\bundle\PlanimetriaCogo.bundle\Contents\</BundleContentsDir>
+  </PropertyGroup>
+  <Target Name="CopyToBundle" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <BundleFiles Include="$(TargetPath)" />
+      <BundleFiles Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+    </ItemGroup>
+    <MakeDir Directories="$(BundleContentsDir)" />
+    <Copy SourceFiles="@(BundleFiles)" DestinationFolder="$(BundleContentsDir)" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="PlanimetriaCogo: DLL copiado al bundle en $(BundleContentsDir)" />
+  </Target>
+
 </Project>

@@ -6,3 +6,7 @@ obj/
 .vs/
 TestResults/
 *.binlog
+
+# Salida copiada al bundle de autocarga (se genera al compilar en Release)
+bundle/PlanimetriaCogo.bundle/Contents/*.dll
+bundle/PlanimetriaCogo.bundle/Contents/*.pdb

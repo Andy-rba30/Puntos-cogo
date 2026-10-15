@@ -1,0 +1,7 @@
+Carpeta de destino del DLL del plugin.
+
+Al compilar en Release (dotnet build PlanimetriaCogo/PlanimetriaCogo.csproj -c Release) el proyecto
+copia aquí PlanimetriaCogo.dll y PlanimetriaCogo.pdb. Si compila de otra forma, copie el DLL a mano.
+
+Luego copie toda la carpeta PlanimetriaCogo.bundle a %APPDATA%\Autodesk\ApplicationPlugins\
+(o ejecute bundle\install.ps1 desde PowerShell).

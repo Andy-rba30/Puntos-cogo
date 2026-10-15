@@ -118,3 +118,109 @@ eligió lo más simple y se deja aquí para revisarlo.
     `CogoPointCollection`, etc.). Eso verifica sintaxis y tipos propios, **no** que las firmas
     coincidan con la API real de Civil 3D 2027: hay que compilar y probar en una máquina con
     Civil 3D instalado.
+
+---
+
+# Notas de implementación (fases 2, 3 y 4)
+
+## Marcas y series en la descripción (§3.1, §3.5)
+
+22. **`I` es lado izquierdo, no inicio.** El planteamiento usa `I` tanto para "lado izquierdo"
+    (§3.1: `CUNETA I`) como para "inicio" (§3.5). Se siguió el ejemplo explícito de §3.1:
+    `leftMarks = I, IZQ`, `rightMarks = D, DER`, `startMarks = INI, INICIO, ..`, `endMarks = F, FIN`.
+    Todas las listas son configurables; la ventana de parámetros rechaza una marca repetida en dos listas.
+
+23. **Solo se interpretan tokens que coinciden con una marca.** `CUNETA ROTA` conserva `CUNETA ROTA`
+    como código base para que el usuario lo vea tal cual y decida. Una marca de puntuación (`..`)
+    puede ir pegada al código (`CUNETA..`).
+
+24. **Serie = sufijo numérico del primer token** (`CUNETA2`, `CUNETA 2`), solo si el código base tiene
+    2 o más letras (`P1` queda como código `P1`). La serie se separa siempre para resolver el código
+    base; agrupa en líneas distintas solo con `splitSeries = true`.
+
+25. **Las marcas se resuelven por código base.** Las filas de la ventana siguen siendo una por
+    descripción original (`cuneta f` es su propia fila), pero el catálogo y "Sugerir similares"
+    comparan el código base, así `cuneta f` propone `CUNETA` sin intervención. Con
+    `useDescriptionMarks = false` cada descripción vuelve a ser su propio código (salvo la serie).
+
+26. **Lado explícito prevalece y se reporta.** Si el lado escrito no coincide con el calculado, el
+    punto va al grupo escrito y aparece en "Lado explícito distinto del calculado". Un punto sobre el
+    eje con lado escrito ya no se descarta: toma el lado escrito.
+
+## Reglas de corte (§3.5)
+
+27. **Orden de evaluación**: marca de fin del anterior → marca de inicio del actual → `distMax` →
+    `stationGapMax`. Se registra un solo motivo por corte (el primero que aplica). 0 desactiva las
+    reglas numéricas.
+
+28. **`stationGapMax` por defecto 100 m.** Complementa la continuidad en curvas de vuelta: si un punto
+    solo tiene candidata en otra pasada del eje (por ejemplo porque la pasada correcta está fuera de
+    `offsetMax`), el salto de progresiva corta la línea en vez de unir a ciegas.
+
+29. **Orden por progresiva** (`order = station`) se aplica después de la continuidad, que siempre
+    recorre los puntos por número (es el orden de toma, base del criterio de §3.3).
+
+## Configuración, catálogo y perfiles
+
+30. **Archivos en `%APPDATA%\PlanimetriaCogo\`**: `config.json` (parámetros), `catalogo.json`
+    (tabla de códigos), `perfiles\*.json` y `reportes\`. Se crean con valores por defecto la primera
+    vez. Un archivo dañado no se sobreescribe: se usan los valores por defecto y se avisa en la línea
+    de comandos. Propiedades en camelCase y enumeraciones por nombre (`"order": "station"`).
+
+31. **El catálogo deja de vivir en código**: `CodeCatalog.Default` sigue existiendo como semilla y
+    respaldo. "Agregar al catálogo" fusiona los códigos nuevos (con tipo, lados y color de la fila) y
+    las descripciones originales como alias; nunca quita nada.
+
+32. **Perfiles**: guardan `Original → (código, tipo, lados, capa, color)` de las filas resueltas y de
+    las ignoradas. Al cargar, coincidencia por descripción exacta y después por forma normalizada; las
+    descripciones sin entrada quedan como estaban y se cuentan en el mensaje de estado.
+
+33. **Las opciones "Al dibujar" se guardan en `config.json`** al pulsar Dibujar (no al cancelar),
+    de modo que la elección se recuerda entre sesiones.
+
+## Eje
+
+34. **Eje desde puntos** (§9.2, §10.1): se usan los puntos cuyo código destino es `axisCode` (incluso
+    si la fila está en Ignorar), ordenados por número, sin duplicados consecutivos, con progresiva 0 en
+    el primero. Vive en memoria; "conservar eje generado" lo dibuja como `Polyline3d` en
+    `PL-EJE-GENERADO`. Nunca se crea un `Alignment`. El comando `PLANIMETRIAEJE` (§9.3) hace solo esa
+    parte. Ningún filtro de calidad sobre los puntos del eje: si hay saltos, el usuario los ve.
+
+35. **Eje por polilínea**: mismo esquema que `AlignmentAxis` (muestreo + valor exacto para la candidata
+    más cercana) con `GetPointAtDist`, `GetClosestPointTo` proyectado en planta y signo por producto
+    cruz con `GetFirstDerivative`. Progresiva 0 en el primer vértice; en una `Polyline3d` la distancia
+    a lo largo de la curva es 3D (pequeña diferencia con la planta en pendientes fuertes).
+
+## Acciones sobre el dibujo (§10.1, §10.2)
+
+36. **Mover objetos puntuales a su capa** cambia solo `LayerId` del `CogoPoint`. **Actualizar
+    descripciones** cambia solo `RawDescription`, reconstruida como código destino + serie + marcas
+    (`cumeta f` → `CUNETA F`). Ambas dentro de la transacción del comando (un Deshacer lo revierte
+    todo), apagadas por defecto y con confirmación en la ventana.
+
+## Reporte
+
+37. **Un solo formateador** (`ReportFormatter`) para la línea de comandos (listas acotadas a 20) y el
+    archivo `.txt` (sin acotar, con detalle de cada línea y de los cambios de descripción). El `.csv`
+    usa `;` como separador y punto decimal; una fila por evento (`LINEA`, `CORTE`, `DESCARTADO`,
+    `DISCREPANCIA_LADO`, `PUNTO`, `IGNORADO`, `SIN_RESOLVER`). Carpeta: la configurada, si no la del
+    DWG, si no `%APPDATA%\PlanimetriaCogo\reportes`.
+
+## Bundle (fase 4)
+
+38. `PackageContents.xml` con `LoadOnCommandInvocation` y los tres comandos. `SeriesMin/Max`
+    R25.0–R26.9 por no tener confirmada la serie interna de Civil 3D 2027 (se espera R26.0). En Release
+    el `.csproj` copia el DLL a `bundle\PlanimetriaCogo.bundle\Contents\`; `install.ps1` copia el
+    bundle a `%APPDATA%\Autodesk\ApplicationPlugins`.
+
+## Pendiente de verificar en una máquina con Civil 3D 2027
+
+39. Las 161 pruebas cubren Core/, Models/, Config/ y los view-models. El plugin completo se compiló en
+    Linux contra *stubs* de Autodesk. Lo que **no** se pudo verificar:
+    - Firmas reales: `Alignment.PointLocation`/`StationOffset` (parámetros `ref`),
+      `CogoPoint.RawDescription` con *setter*, `Curve.GetClosestPointTo(Point3d, Vector3d, bool)`,
+      `Application.ShowModalWindow`, `CogoPointCollection` enumerable de `ObjectId`.
+    - Comportamiento de la `DataGrid` (edición de celdas, ordenación con `VisibleRows`) y de los
+      diálogos de archivo dentro de Civil 3D.
+    - Que `PackageContents.xml` sea aceptado por la serie real de Civil 3D 2027.
+    - Rendimiento con 17 000 puntos (estimado en segundos; si no, índice espacial en `SampledPolylineAxis`).

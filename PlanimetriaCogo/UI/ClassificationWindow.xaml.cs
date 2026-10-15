@@ -14,17 +14,19 @@ public partial class ClassificationWindow : Window
 {
     private readonly ClassificationViewModel _viewModel;
 
-    // Edición en bloque: fila, propiedad, valor previo y filas seleccionadas al empezar a editar la celda.
+    // Edición en bloque: fila, propiedad y filas seleccionadas al empezar a editar la celda.
     private ClassificationRowViewModel? _editingRow;
     private string? _editingProperty;
-    private object? _editingOldValue;
     private List<ClassificationRowViewModel> _editingSelection = new();
+    private bool _propagating;
 
     public ClassificationWindow(ClassificationViewModel viewModel)
     {
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
+        foreach (var row in viewModel.Rows)
+            row.PropertyChanged += Row_PropertyChanged;
     }
 
     private void SuggestButton_Click(object sender, RoutedEventArgs e)
@@ -154,43 +156,61 @@ public partial class ClassificationWindow : Window
 
     // ---- Edición en bloque ----
     // Si hay varias filas marcadas en Sel. (o seleccionadas en la tabla) y se edita una de ellas, el cambio se
-    // copia a las demás. Se guarda el valor previo al empezar y se compara al confirmar, así una edición que no
-    // cambió nada (abrir la celda y salir) no toca al resto.
+    // copia a las demás. La propagación se dispara cuando la propiedad editada cambia en la fila (PropertyChanged),
+    // no en CellEditEnding: en las columnas de plantilla (Tipo, Código destino) el DataGrid no confirma el enlace
+    // al cerrar la celda, así que el valor llega al view-model en otro momento (al elegir en el desplegable o al
+    // perder el foco). Así se propaga exactamente lo que cambió, en cuanto cambia, y una edición que no cambió
+    // nada (abrir la celda y salir) no toca al resto.
 
     private void RowsGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
     {
         _editingRow = e.Row.Item as ClassificationRowViewModel;
         _editingProperty = e.Column.SortMemberPath;
-        _editingOldValue = _editingRow != null && !string.IsNullOrEmpty(_editingProperty)
-            ? _editingRow.GetEditableValue(_editingProperty)
-            : null;
-        // Se toma aquí: el clic que confirma la edición puede cambiar la selección antes de CellEditEnding.
+        // Se toma aquí: el clic que confirma la edición puede cambiar la selección antes de que llegue el valor.
         _editingSelection = RowsGrid.SelectedItems.OfType<ClassificationRowViewModel>().ToList();
     }
 
     private void RowsGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
     {
+        if (e.EditAction != DataGridEditAction.Commit)
+        {
+            ClearEditState();
+            return;
+        }
+
+        // El enlace de la celda puede confirmarse después de este evento: se conserva el estado hasta que pase.
         var row = _editingRow;
         var property = _editingProperty;
-        var oldValue = _editingOldValue;
-        var selection = _editingSelection;
-        _editingRow = null;
-        _editingProperty = null;
-        _editingOldValue = null;
-        _editingSelection = new List<ClassificationRowViewModel>();
-
-        if (e.EditAction != DataGridEditAction.Commit || row == null || string.IsNullOrEmpty(property))
-            return;
-        if (!ReferenceEquals(e.Row.Item, row))
-            return;
-
-        // El enlace de la celda se confirma después de este evento: propagar cuando el nuevo valor ya esté en la fila.
         Dispatcher.InvokeAsync(() =>
         {
-            if (Equals(row.GetEditableValue(property), oldValue))
-                return;
-            _viewModel.PropagateEdit(row, property, selection);
+            if (ReferenceEquals(_editingRow, row) && _editingProperty == property)
+                ClearEditState();
         }, DispatcherPriority.Background);
+    }
+
+    private void Row_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_propagating || _editingRow == null || string.IsNullOrEmpty(_editingProperty))
+            return;
+        if (!ReferenceEquals(sender, _editingRow) || e.PropertyName != _editingProperty)
+            return;
+
+        _propagating = true;
+        try
+        {
+            _viewModel.PropagateEdit(_editingRow, _editingProperty, _editingSelection);
+        }
+        finally
+        {
+            _propagating = false;
+        }
+    }
+
+    private void ClearEditState()
+    {
+        _editingRow = null;
+        _editingProperty = null;
+        _editingSelection = new List<ClassificationRowViewModel>();
     }
 
     /// <summary>
@@ -252,5 +272,7 @@ public partial class ClassificationWindow : Window
     {
         RowsGrid.CommitEdit(DataGridEditingUnit.Cell, true);
         RowsGrid.CommitEdit(DataGridEditingUnit.Row, true);
+        // Lo que venga después (sugerir, unificar, perfiles) cambia filas por programa: no es una edición en bloque.
+        ClearEditState();
     }
 }

@@ -80,14 +80,18 @@ eligió lo más simple y se deja aquí para revisarlo.
 14. **"Unificar selección"** usa las filas marcadas en la columna *Sel.*; si no hay ninguna,
     usa las filas seleccionadas en la tabla.
 
-    **Edición en bloque** (`ClassificationViewModel.PropagateEdit`): al confirmar la edición de una
-    celda, si la fila editada está marcada en *Sel.* o seleccionada en la tabla junto con otras, el
-    nuevo valor de esa propiedad se copia a las demás (pasando por el *setter*, así un código destino
-    vuelve a proponer tipo, capa y color). La ventana guarda el valor previo en `BeginningEdit` y
-    compara en `CellEditEnding` (diferido con `Dispatcher`, porque el enlace se confirma después del
-    evento): abrir una celda y salir sin cambiar nada no propaga. La selección de la tabla se toma
-    en `BeginningEdit`, porque el clic que confirma la edición puede cambiarla antes de
-    `CellEditEnding`. Las marcas de *Sel.* se conservan tras propagar para encadenar varios cambios.
+    **Edición en bloque** (`ClassificationViewModel.PropagateEdit`): al editar una celda, si la fila
+    editada está marcada en *Sel.* o seleccionada en la tabla junto con otras, el nuevo valor de esa
+    propiedad se copia a las demás (pasando por el *setter*, así un código destino vuelve a proponer
+    tipo, capa y color). La ventana anota en `BeginningEdit` la fila, la propiedad y la selección de
+    la tabla (el clic que confirma la edición puede cambiarla después) y propaga en el
+    `PropertyChanged` de esa fila cuando cambia justo esa propiedad: en las columnas de plantilla
+    (Tipo, Código destino) el `DataGrid` no confirma el enlace al cerrar la celda, así que el valor
+    llega al elegir en el desplegable o al perder el foco, no en `CellEditEnding`. Abrir una celda y
+    salir sin cambiar nada no propaga (no hay `PropertyChanged`). El estado se limpia al cancelar,
+    tras confirmar (diferido, por si el enlace llega después) y antes de las acciones de los botones,
+    para que un cambio por programa no se tome como edición en bloque. Las marcas de *Sel.* se
+    conservan tras propagar para encadenar varios cambios.
 
     El `DataGrid` deja sola a la fila sobre la que se hace un clic simple aunque forme parte de una
     selección múltiple (`MakeFullRowSelection` sin Ctrl/Mayús limpia el resto antes de editar). Para

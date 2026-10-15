@@ -112,6 +112,36 @@ public class ClassificationViewModelTests
     }
 
     [Fact]
+    public void Draw_Unchecked_CountsAsIgnored_AndPropagates()
+    {
+        var vm = Build();
+        var cumeta = vm.Rows.Single(r => r.Rule.Original == "cumeta");
+        var cuneta = vm.Rows.Single(r => r.Rule.Original == "CUNETA");
+        var casa = vm.Rows.Single(r => r.Rule.Original == "casa");
+        var linesBefore = vm.PointsToLines;
+        var ignoredBefore = vm.PointsIgnored;
+
+        cumeta.IsSelected = cuneta.IsSelected = true;
+        cumeta.Draw = false;
+        Assert.Equal("no dibujar", cumeta.Status);
+        Assert.Equal(1, vm.PropagateEdit(cumeta, nameof(ClassificationRowViewModel.Draw)));
+        Assert.False(cuneta.Draw);
+        Assert.True(casa.Draw);
+        Assert.Contains("Dibujar", vm.StatusMessage);
+
+        // Conserva código, tipo y capa; solo sale del dibujo.
+        Assert.Equal("CUNETA", cumeta.DestinationCode);
+        Assert.Equal(CodeKind.Line, cumeta.Rule.Kind);
+        Assert.Equal(linesBefore - 3, vm.PointsToLines); // cumeta×2 + CUNETA
+        Assert.Equal(ignoredBefore + 3, vm.PointsIgnored);
+
+        // Restablecer vuelve a dibujarla.
+        vm.ResetToInitial();
+        Assert.True(cumeta.Draw && cuneta.Draw);
+        Assert.Equal(linesBefore, vm.PointsToLines);
+    }
+
+    [Fact]
     public void PropagateEdit_DestinationCode_ReproposesKindAndLayer()
     {
         var vm = Build();

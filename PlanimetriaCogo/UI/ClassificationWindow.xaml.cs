@@ -244,6 +244,11 @@ public partial class ClassificationWindow : Window
                 if (RowsGrid.BeginEdit())
                     row.SplitBySide = !row.SplitBySide;
                 return;
+            case nameof(ClassificationRowViewModel.Draw):
+                RowsGrid.CurrentCell = new DataGridCellInfo(cell);
+                if (RowsGrid.BeginEdit())
+                    row.Draw = !row.Draw;
+                return;
             default:
                 if (cell.IsReadOnly)
                     return;

@@ -124,11 +124,14 @@ serie interna (variable `ACADVER`), ajuste el rango.
      código base: `cuneta f`, `CUNETA I`, `cuneta2` proponen `CUNETA`.
    - *Tipo*: `Línea`, `Punto` (objeto puntual: se cuenta y, si se activa, se mueve de capa) o `Ignorar`.
    - *Por lado*, *Capa* (base; las líneas con lados reciben `-IZQ`/`-DER`), *Color (ACI)*, *Estado*.
+   - *Dibujar*: casilla por fila. Desmarcada, la fila queda fuera del dibujo (sus puntos se cuentan
+     como ignorados) pero conserva código, tipo, capa y color para volver a activarla. Se guarda en
+     los perfiles.
    - **Buscar** y **Solo sin resolver** filtran la tabla; las columnas se ordenan al pulsar el encabezado.
    - **Sugerir similares**, **Unificar selección** y **Restablecer** (vuelve a la propuesta del catálogo).
    - **Edición en bloque**: seleccione varias filas (clic y Mayús+clic, Ctrl+clic, o la casilla
-     *Sel.*) y edite cualquiera de ellas; el código destino, tipo, lado, capa o color que cambie se
-     copia a todas las seleccionadas. Un clic simple sobre una fila ya seleccionada no deshace la
+     *Sel.*) y edite cualquiera de ellas; el código destino, tipo, lado, capa, color o casilla
+     *Dibujar* que cambie se copia a todas las seleccionadas. Un clic simple sobre una fila ya seleccionada no deshace la
      selección: abre la celda en edición. Para quedarse con una sola fila, haga clic en una que no
      esté seleccionada. Editar una fila fuera de la selección no toca a las demás.
    - **Perfil** (`Cargar`, `Guardar`, `Abrir archivo…`): guarda la clasificación en

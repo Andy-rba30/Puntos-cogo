@@ -17,6 +17,7 @@ public sealed class ProfileEntry
     public bool SplitBySide { get; set; } = true;
     public string LayerBase { get; set; } = "";
     public short ColorIndex { get; set; } = 7;
+    public bool Draw { get; set; } = true;
 }
 
 /// <summary>
@@ -44,7 +45,8 @@ public sealed class Profile
                     Kind = r.Kind,
                     SplitBySide = r.SplitBySide,
                     LayerBase = r.LayerBase,
-                    ColorIndex = r.ColorIndex
+                    ColorIndex = r.ColorIndex,
+                    Draw = r.Draw
                 })
                 .ToList()
         };
@@ -77,7 +79,7 @@ public sealed class Profile
             var color = entry.ColorIndex is > 0 and < 256 ? entry.ColorIndex : (short)7;
 
             if (rule.DestinationCode == destination && rule.Kind == entry.Kind && rule.SplitBySide == entry.SplitBySide &&
-                rule.LayerBase == layer && rule.ColorIndex == color)
+                rule.LayerBase == layer && rule.ColorIndex == color && rule.Draw == entry.Draw)
                 continue;
 
             rule.DestinationCode = destination;
@@ -85,6 +87,7 @@ public sealed class Profile
             rule.SplitBySide = entry.SplitBySide;
             rule.LayerBase = layer;
             rule.ColorIndex = color;
+            rule.Draw = entry.Draw;
             changed++;
         }
         return changed;

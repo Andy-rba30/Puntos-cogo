@@ -97,17 +97,31 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>Casilla "Dibujar": false deja la fila fuera del dibujo sin perder su configuración.</summary>
+    public bool Draw
+    {
+        get => Rule.Draw;
+        set
+        {
+            if (Rule.Draw == value)
+                return;
+            Rule.Draw = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Status));
+        }
+    }
+
     public bool IsResolved => Rule.IsResolved;
 
     public bool IsLine => Rule.Kind == CodeKind.Line;
 
     /// <summary>Texto corto de estado para la columna "Estado" y los filtros.</summary>
-    public string Status => Rule.Kind == CodeKind.Ignore ? "ignorar" : !Rule.IsResolved ? "sin resolver" : Rule.Kind == CodeKind.Point ? "punto" : "línea";
+    public string Status => Rule.Kind == CodeKind.Ignore ? "ignorar" : !Rule.IsResolved ? "sin resolver" : !Rule.Draw ? "no dibujar" : Rule.Kind == CodeKind.Point ? "punto" : "línea";
 
     /// <summary>Propiedades que el usuario edita en la tabla y que la edición en bloque copia a las demás filas marcadas.</summary>
     public static readonly string[] EditableProperties =
     {
-        nameof(DestinationCode), nameof(KindLabel), nameof(SplitBySide), nameof(LayerBase), nameof(ColorIndex)
+        nameof(DestinationCode), nameof(KindLabel), nameof(SplitBySide), nameof(LayerBase), nameof(ColorIndex), nameof(Draw)
     };
 
     /// <summary>Valor actual de una propiedad editable (para detectar si una edición cambió algo). null si no es editable.</summary>
@@ -118,6 +132,7 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
         nameof(SplitBySide) => SplitBySide,
         nameof(LayerBase) => LayerBase,
         nameof(ColorIndex) => ColorIndex,
+        nameof(Draw) => Draw,
         _ => null
     };
 
@@ -152,6 +167,10 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
                 if (ColorIndex == source.ColorIndex) return false;
                 ColorIndex = source.ColorIndex;
                 return true;
+            case nameof(Draw):
+                if (Draw == source.Draw) return false;
+                Draw = source.Draw;
+                return true;
             default:
                 return false;
         }
@@ -168,6 +187,7 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SplitBySide));
         OnPropertyChanged(nameof(LayerBase));
         OnPropertyChanged(nameof(ColorIndex));
+        OnPropertyChanged(nameof(Draw));
         OnPropertyChanged(nameof(IsResolved));
         OnPropertyChanged(nameof(IsLine));
         OnPropertyChanged(nameof(Status));

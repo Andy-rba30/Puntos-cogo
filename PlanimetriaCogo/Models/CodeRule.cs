@@ -30,6 +30,12 @@ public sealed class CodeRule
     /// <summary>Color ACI (1..255) para la capa; 7 = blanco/negro por defecto.</summary>
     public short ColorIndex { get; set; } = 7;
 
+    /// <summary>
+    /// false = la fila no se dibuja (ni líneas ni objetos puntuales) pero conserva su código, tipo, capa y color,
+    /// para volver a activarla sin reconfigurar. Sus puntos se reportan como ignorados.
+    /// </summary>
+    public bool Draw { get; set; } = true;
+
     public bool IsResolved => !string.IsNullOrWhiteSpace(DestinationCode);
 
     public CodeRule Clone() => (CodeRule)MemberwiseClone();

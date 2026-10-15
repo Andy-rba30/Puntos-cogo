@@ -84,6 +84,27 @@ public class PlanimetryEngineTests
     }
 
     [Fact]
+    public void RuleWithDrawUnchecked_IsNotDrawn_AndCountedAsIgnored()
+    {
+        var points = new[]
+        {
+            P(1, "casa", 10, 5), P(2, "casa", 12, 5), P(3, "TN", 14, 5), P(4, "TN", 16, 5), P(5, "TN", 18, 5),
+        };
+        var rules = ClassificationProposer.BuildRules(points, CodeCatalog.Default, DefaultSettings);
+        rules.Single(r => r.Original == "TN").Draw = false;
+        rules.Single(r => r.Original == "casa").Draw = false;
+
+        var result = new PlanimetryEngine(DefaultSettings).Run(points, rules, TestAxes.StraightX());
+
+        Assert.Empty(result.Lines);
+        Assert.Empty(result.PointObjects);
+        Assert.Empty(result.DescriptionChanges);
+        Assert.Equal(3, result.IgnoredCodes["TN"]);
+        Assert.Equal(2, result.IgnoredCodes["casa"]);
+        Assert.Equal(5, result.TotalPoints);
+    }
+
+    [Fact]
     public void PointsBeyondOffsetMaxOrOutsideAxis_AreDiscardedWithReason()
     {
         var points = new[] { P(1, "TN", 10, 5), P(2, "TN", 20, 45), P(3, "TN", -10, 5), P(4, "TN", 30, 5) };

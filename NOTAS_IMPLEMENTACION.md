@@ -64,6 +64,11 @@ eligió lo más simple y se deja aquí para revisarlo.
 10. **Descripciones vacías o numéricas** (`3015396`, puntos de control) se proponen como
     `Ignorar` y aparecen en el reporte de códigos ignorados.
 
+    **Casilla "Dibujar"** (`CodeRule.Draw`, true por defecto): desmarcada, el motor trata la fila
+    como ignorada (sus puntos van a `IgnoredCodes`, sin líneas, objetos puntuales ni cambios de
+    descripción) pero la fila conserva código, tipo, lado, capa y color, así se reactiva sin
+    reconfigurar. Estado "no dibujar"; se guarda en los perfiles y entra en la edición en bloque.
+
 11. **Catálogo en código.** La tabla de §9.2 vive en `CodeCatalog.Default` con un color ACI por
     código (TN 8, CUNETA 4, VEREDA 3, BORDE 1, EJE 2, CARRETERA 5; objetos puntuales 7). Se
     añadieron los alias `CL` → EJE y `pilona` → PILON (el prompt menciona `pilona`). Pasará a

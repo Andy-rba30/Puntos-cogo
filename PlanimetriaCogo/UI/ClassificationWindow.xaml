@@ -29,8 +29,10 @@
             dibujo salvo que active las opciones de abajo. Las filas sin código destino no se dibujan y se reportan como
             "sin resolver". La capa de las líneas con lados recibe el sufijo -IZQ / -DER al dibujar. Las marcas de la
             descripción (CUNETA I, CUNETA F, CUNETA2) se resuelven por su código base y se respetan al dibujar.
+            Desmarque "Dibujar" en una fila para dejarla fuera del dibujo sin perder su configuración.
             Para cambiar varias filas a la vez: selecciónelas (clic y Mayús+clic, o Ctrl+clic, o la casilla Sel.) y
-            edite cualquiera de ellas; el código, tipo, lado, capa o color que cambie se aplica a todas las seleccionadas.
+            edite cualquiera de ellas; el código, tipo, lado, capa, color o casilla Dibujar que cambie se aplica a todas
+            las seleccionadas.
         </TextBlock>
 
         <!-- Barra superior: perfiles, catálogo, filtro -->
@@ -78,6 +80,9 @@
                             <Setter Property="Background" Value="#FFF4E5" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding Status}" Value="ignorar">
+                            <Setter Property="Foreground" Value="#888888" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Status}" Value="no dibujar">
                             <Setter Property="Foreground" Value="#888888" />
                         </DataTrigger>
                     </Style.Triggers>
@@ -150,6 +155,8 @@
                                         Binding="{Binding SplitBySide, UpdateSourceTrigger=PropertyChanged}" />
                 <DataGridTextColumn Header="Capa" Width="*" Binding="{Binding LayerBase, UpdateSourceTrigger=LostFocus}" SortMemberPath="LayerBase" />
                 <DataGridTextColumn Header="Color (ACI)" Width="80" Binding="{Binding ColorIndex, UpdateSourceTrigger=LostFocus}" SortMemberPath="ColorIndex" />
+                <DataGridCheckBoxColumn Header="Dibujar" Width="60" SortMemberPath="Draw"
+                                        Binding="{Binding Draw, UpdateSourceTrigger=PropertyChanged}" />
                 <DataGridTextColumn Header="Estado" Width="90" IsReadOnly="True" Binding="{Binding Status}" SortMemberPath="Status" />
             </DataGrid.Columns>
         </DataGrid>

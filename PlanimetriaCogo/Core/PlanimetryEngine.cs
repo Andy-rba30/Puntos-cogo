@@ -39,7 +39,7 @@ public sealed class PlanimetryEngine
             var raw = point.RawDescription ?? "";
             ruleByOriginal.TryGetValue(raw, out var rule);
 
-            if (rule != null && rule.Kind == CodeKind.Ignore)
+            if (rule != null && (rule.Kind == CodeKind.Ignore || !rule.Draw))
             {
                 Increment(result.IgnoredCodes, raw);
                 continue;

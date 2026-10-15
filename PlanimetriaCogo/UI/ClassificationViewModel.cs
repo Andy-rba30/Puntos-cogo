@@ -265,6 +265,7 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         nameof(ClassificationRowViewModel.SplitBySide) => "Por lado",
         nameof(ClassificationRowViewModel.LayerBase) => "Capa",
         nameof(ClassificationRowViewModel.ColorIndex) => "Color",
+        nameof(ClassificationRowViewModel.Draw) => "Dibujar",
         _ => propertyName
     };
 
@@ -276,13 +277,14 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
         {
             var rule = row.Rule;
             if (rule.DestinationCode == initial.DestinationCode && rule.Kind == initial.Kind && rule.SplitBySide == initial.SplitBySide &&
-                rule.LayerBase == initial.LayerBase && rule.ColorIndex == initial.ColorIndex)
+                rule.LayerBase == initial.LayerBase && rule.ColorIndex == initial.ColorIndex && rule.Draw == initial.Draw)
                 continue;
             rule.DestinationCode = initial.DestinationCode;
             rule.Kind = initial.Kind;
             rule.SplitBySide = initial.SplitBySide;
             rule.LayerBase = initial.LayerBase;
             rule.ColorIndex = initial.ColorIndex;
+            rule.Draw = initial.Draw;
             row.RaiseAll();
             changed++;
         }
@@ -464,6 +466,8 @@ public sealed class ClassificationViewModel : INotifyPropertyChanged
                 ignored += rule.Count;
             else if (!rule.IsResolved)
                 unresolved += rule.Count;
+            else if (!rule.Draw)
+                ignored += rule.Count; // Casilla "Dibujar" desmarcada: el motor los trata como ignorados.
             else if (rule.Kind == CodeKind.Point)
                 pointObjects += rule.Count;
             else

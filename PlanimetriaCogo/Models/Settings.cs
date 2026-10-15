@@ -12,6 +12,16 @@ public enum PointOrder
     Station
 }
 
+/// <summary>Orden de las columnas de un archivo CSV de puntos (PLANIMETRIACSV).</summary>
+public enum CsvColumnOrder
+{
+    /// <summary>Número, Norte (Y), Este (X), cota, descripción. Formato habitual de Civil 3D y de la muestra del proyecto.</summary>
+    PNEZD,
+
+    /// <summary>Número, Este (X), Norte (Y), cota, descripción.</summary>
+    PENZD
+}
+
 /// <summary>
 /// Parámetros del comando. Se guardan en <c>%APPDATA%\PlanimetriaCogo\config.json</c>
 /// (ver <c>Config/ConfigService</c>) y se editan con el comando PLANIMETRIACONFIG o desde
@@ -68,6 +78,17 @@ public sealed class Settings
     /// <summary>Sufijo numérico de serie ("CUNETA1", "CUNETA2") produce líneas distintas.</summary>
     public bool SplitSeries { get; set; } = false;
 
+    // ---- Modo por bloques (PLANIMETRIACSV) ----
+
+    /// <summary>
+    /// Códigos cuyos bloques se dibujan como polilínea cerrada (polígono) en el modo por bloques: casas, losas…
+    /// Se comparan normalizados. Los demás códigos producen una polilínea abierta por bloque.
+    /// </summary>
+    public List<string> ClosedBlockCodes { get; set; } = new() { "CASA" };
+
+    /// <summary>Orden de columnas del CSV la última vez (se propone como valor por defecto en el comando).</summary>
+    public CsvColumnOrder CsvColumnOrder { get; set; } = CsvColumnOrder.PNEZD;
+
     // ---- Acciones sobre el dibujo (todas apagadas por defecto, §10.1) ----
 
     /// <summary>Mover los CogoPoint de tipo Punto a la capa indicada en su fila (§10.2).</summary>
@@ -102,6 +123,7 @@ public sealed class Settings
         copy.EndMarks = new List<string>(EndMarks);
         copy.LeftMarks = new List<string>(LeftMarks);
         copy.RightMarks = new List<string>(RightMarks);
+        copy.ClosedBlockCodes = new List<string>(ClosedBlockCodes);
         return copy;
     }
 
@@ -123,6 +145,8 @@ public sealed class Settings
         LeftMarks = new List<string>(other.LeftMarks);
         RightMarks = new List<string>(other.RightMarks);
         SplitSeries = other.SplitSeries;
+        ClosedBlockCodes = new List<string>(other.ClosedBlockCodes);
+        CsvColumnOrder = other.CsvColumnOrder;
         MovePointObjectsToLayer = other.MovePointObjectsToLayer;
         UpdateDescriptionsInDrawing = other.UpdateDescriptionsInDrawing;
         ReportToFile = other.ReportToFile;

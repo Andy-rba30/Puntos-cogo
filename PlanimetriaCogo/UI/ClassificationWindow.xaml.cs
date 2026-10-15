@@ -27,6 +27,26 @@ public partial class ClassificationWindow : Window
         DataContext = viewModel;
         foreach (var row in viewModel.Rows)
             row.PropertyChanged += Row_PropertyChanged;
+        ApplyMode();
+    }
+
+    /// <summary>
+    /// Modo por bloques (PLANIMETRIACSV): se muestran la explicación, la columna Bloques y la columna Unión; se
+    /// ocultan "Por lado" y las acciones sobre CogoPoint, que no existen en ese flujo. Las columnas del DataGrid no
+    /// están en el árbol visual, así que su visibilidad se fija aquí y no por enlace.
+    /// </summary>
+    private void ApplyMode()
+    {
+        var blocks = _viewModel.BlockMode;
+        IntroBlockText.Visibility = blocks ? Visibility.Visible : Visibility.Collapsed;
+        IntroText.Visibility = blocks ? Visibility.Collapsed : Visibility.Visible;
+        BlockInfoColumn.Visibility = blocks ? Visibility.Visible : Visibility.Collapsed;
+        JoinColumn.Visibility = blocks ? Visibility.Visible : Visibility.Collapsed;
+        SplitBySideColumn.Visibility = blocks ? Visibility.Collapsed : Visibility.Visible;
+        UpdateDescriptionsCheck.Visibility = blocks ? Visibility.Collapsed : Visibility.Visible;
+        MovePointsCheck.Visibility = blocks ? Visibility.Collapsed : Visibility.Visible;
+        if (blocks)
+            Title = "Planimetría por bloques (CSV): clasificación de descripciones";
     }
 
     private void SuggestButton_Click(object sender, RoutedEventArgs e)
@@ -127,7 +147,8 @@ public partial class ClassificationWindow : Window
                 return;
         }
 
-        if (_viewModel.UpdateDescriptionsInDrawing || _viewModel.MovePointObjectsToLayer)
+        // En el modo por bloques no hay CogoPoint que modificar: esas opciones no aplican aunque estén guardadas.
+        if (!_viewModel.BlockMode && (_viewModel.UpdateDescriptionsInDrawing || _viewModel.MovePointObjectsToLayer))
         {
             var actions = string.Join(" y ", new[]
             {

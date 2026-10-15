@@ -18,6 +18,9 @@ public sealed class ProfileEntry
     public string LayerBase { get; set; } = "";
     public short ColorIndex { get; set; } = 7;
     public bool Draw { get; set; } = true;
+
+    /// <summary>Unión en el modo por bloques (perfiles antiguos sin este campo: por bloque).</summary>
+    public BlockJoin BlockJoin { get; set; } = BlockJoin.Block;
 }
 
 /// <summary>
@@ -46,7 +49,8 @@ public sealed class Profile
                     SplitBySide = r.SplitBySide,
                     LayerBase = r.LayerBase,
                     ColorIndex = r.ColorIndex,
-                    Draw = r.Draw
+                    Draw = r.Draw,
+                    BlockJoin = r.BlockJoin
                 })
                 .ToList()
         };
@@ -79,7 +83,7 @@ public sealed class Profile
             var color = entry.ColorIndex is > 0 and < 256 ? entry.ColorIndex : (short)7;
 
             if (rule.DestinationCode == destination && rule.Kind == entry.Kind && rule.SplitBySide == entry.SplitBySide &&
-                rule.LayerBase == layer && rule.ColorIndex == color && rule.Draw == entry.Draw)
+                rule.LayerBase == layer && rule.ColorIndex == color && rule.Draw == entry.Draw && rule.BlockJoin == entry.BlockJoin)
                 continue;
 
             rule.DestinationCode = destination;
@@ -88,6 +92,7 @@ public sealed class Profile
             rule.LayerBase = layer;
             rule.ColorIndex = color;
             rule.Draw = entry.Draw;
+            rule.BlockJoin = entry.BlockJoin;
             changed++;
         }
         return changed;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -18,7 +19,7 @@ using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace PlanimetriaCogo;
 
-/// <summary>Comandos del plugin: PLANIMETRIA, PLANIMETRIACONFIG y PLANIMETRIAEJE.</summary>
+/// <summary>Comandos del plugin: PLANIMETRIA, PLANIMETRIACONFIG, PLANIMETRIAEJE y PLANIMETRIACSV.</summary>
 public class Commands
 {
     private enum AxisKind { Alignment, Polyline, Points }
@@ -231,6 +232,131 @@ public class Commands
         {
             ed.WriteMessage($"\nError en PLANIMETRIAEJE: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// PLANIMETRIACSV (modo por bloques): lee un archivo de puntos tal como se tomó en campo (número, norte, este,
+    /// cota, descripción), abre la ventana de clasificación en modo bloques y dibuja una Polyline3d por cada bloque
+    /// de filas consecutivas con el mismo código destino, en el orden del archivo, sin eje ni lados. Los bloques de
+    /// los códigos configurados (CASA…) se cierran como polígono. No crea ni modifica CogoPoint.
+    /// </summary>
+    [CommandMethod("PLANIMETRIACSV", CommandFlags.Modal)]
+    public void PlanimetriaCsv()
+    {
+        var doc = Application.DocumentManager.MdiActiveDocument;
+        if (doc == null)
+            return;
+        var ed = doc.Editor;
+        var db = doc.Database;
+
+        var config = new ConfigService(ConfigPaths.Default);
+        var settings = config.LoadSettings();
+        if (config.LastError != null) ed.WriteMessage("\n" + config.LastError);
+        var catalog = config.LoadCatalog();
+        if (config.LastError != null) ed.WriteMessage("\n" + config.LastError);
+
+        // 1. Archivo y orden de columnas.
+        var path = PromptForCsvFile(ed);
+        if (path == null)
+            return;
+        var order = PromptForColumnOrder(ed, settings.CsvColumnOrder);
+        if (order == null)
+            return;
+        settings.CsvColumnOrder = order.Value;
+
+        // 2. Lectura en orden de archivo.
+        CsvReadResult csv;
+        try
+        {
+            csv = CsvPointReader.ReadFile(path, order.Value);
+        }
+        catch (System.Exception ex)
+        {
+            ed.WriteMessage($"\nNo se pudo leer el archivo: {ex.Message}");
+            return;
+        }
+        ed.WriteMessage($"\nArchivo: {path}");
+        ed.WriteMessage($"\nPuntos leídos: {csv.Points.Count} (separador: {csv.SeparatorName}, orden {order.Value})"
+                        + (csv.SkippedLines > 0 ? $"; filas omitidas: {csv.SkippedLines}" : "")
+                        + (csv.LinesWithoutElevation > 0 ? $"; sin cota (se usa 0): {csv.LinesWithoutElevation}" : "")
+                        + (csv.LinesWithoutNumber > 0 ? $"; sin número de punto (se usa la posición): {csv.LinesWithoutNumber}" : "") + ".");
+        foreach (var warning in csv.Warnings)
+            ed.WriteMessage("\n  " + warning);
+        if (csv.Points.Count == 0)
+        {
+            ed.WriteMessage("\nEl archivo no contiene puntos interpretables. Revise el separador y el orden de columnas.");
+            return;
+        }
+
+        // 3. Ventana de clasificación en modo bloques.
+        var rules = ClassificationProposer.BuildBlockRules(csv.Points, catalog, settings);
+        var viewModel = new ClassificationViewModel(rules, catalog, settings, new ProfileStore(config.Paths), config) { BlockMode = true };
+        viewModel.SetBlockStats(BlockStats.ByDescription(csv.Points));
+        var window = new ClassificationWindow(viewModel);
+        if (AcadApp.ShowModalWindow(window) != true)
+        {
+            ed.WriteMessage("\nPLANIMETRIACSV cancelado.");
+            return;
+        }
+        TrySaveSettings(ed, config, settings);
+
+        // 4. Cálculo por bloques y dibujo en una sola transacción.
+        var result = new BlockPlanimetryEngine(settings).Run(csv.Points, viewModel.ToRules());
+        result.SourceDescription = $"{Path.GetFileName(path)} ({csv.Points.Count} puntos, orden {order.Value})";
+
+        using var tr = db.TransactionManager.StartTransaction();
+        try
+        {
+            var blockTable = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+            var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+            foreach (var line in result.Lines)
+            {
+                var layerId = LayerManager.EnsureLayer(db, tr, line.Layer, line.ColorIndex);
+                GeometryBuilder.AddPolyline3d(tr, modelSpace, line, layerId);
+            }
+            tr.Commit();
+            ReportWriter.Write(ed, result);
+            ReportWriter.WriteFiles(ed, result, settings, config.Paths, db.Filename);
+        }
+        catch (System.Exception ex)
+        {
+            ed.WriteMessage($"\nError en PLANIMETRIACSV: {ex.Message}");
+        }
+    }
+
+    private static string? PromptForCsvFile(Editor ed)
+    {
+        var options = new PromptOpenFileOptions("\nArchivo de puntos (número, norte, este, cota, descripción)")
+        {
+            Filter = "Archivos de puntos (*.csv;*.txt)|*.csv;*.txt|Todos los archivos (*.*)|*.*",
+            DialogCaption = "PLANIMETRIACSV: archivo de puntos de campo"
+        };
+        var result = ed.GetFileNameForOpen(options);
+        if (result.Status != PromptStatus.OK || string.IsNullOrWhiteSpace(result.StringResult))
+            return null;
+        if (!File.Exists(result.StringResult))
+        {
+            ed.WriteMessage($"\nNo existe el archivo {result.StringResult}.");
+            return null;
+        }
+        return result.StringResult;
+    }
+
+    private static CsvColumnOrder? PromptForColumnOrder(Editor ed, CsvColumnOrder current)
+    {
+        var defaultKeyword = current == CsvColumnOrder.PENZD ? "PENZD" : "PNEZD";
+        var options = new PromptKeywordOptions($"\nOrden de columnas [PNEZD/PENZD] <{defaultKeyword}>: ");
+        options.Keywords.Add("PNEZD");
+        options.Keywords.Add("PENZD");
+        options.Keywords.Default = defaultKeyword;
+        options.AllowNone = true;
+
+        var keyword = ed.GetKeywords(options);
+        if (keyword.Status == PromptStatus.Cancel)
+            return null;
+        if (keyword.Status != PromptStatus.OK)
+            return current;
+        return keyword.StringResult == "PENZD" ? CsvColumnOrder.PENZD : CsvColumnOrder.PNEZD;
     }
 
     private static bool TrySaveSettings(Editor ed, ConfigService config, Settings settings)

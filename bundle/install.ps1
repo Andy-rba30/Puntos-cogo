@@ -6,7 +6,7 @@
   Copia bundle\PlanimetriaCogo.bundle a %APPDATA%\Autodesk\ApplicationPlugins\PlanimetriaCogo.bundle.
   Si el DLL no está en Contents\, intenta tomarlo de PlanimetriaCogo\bin\Release\.
   Civil 3D (cerrado durante la instalación) carga el plugin al escribir PLANIMETRIA, PLANIMETRIACONFIG
-  o PLANIMETRIAEJE, sin NETLOAD.
+  PLANIMETRIAEJE o PLANIMETRIACSV, sin NETLOAD.
 
 .PARAMETER Uninstall
   Elimina el bundle instalado.

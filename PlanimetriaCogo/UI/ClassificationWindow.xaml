@@ -24,7 +24,15 @@
         </Grid.RowDefinitions>
 
         <!-- Explicación -->
-        <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8">
+        <TextBlock x:Name="IntroBlockText" Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed">
+            Modo por bloques: los puntos se recorren en el orden del archivo, tal como se tomaron en campo, sin eje ni
+            lados. Un bloque es una corrida de filas consecutivas con el mismo código destino; cada bloque produce una
+            polilínea (abierta, o cerrada si la columna Unión dice "Bloque cerrado"); "Continua" une todos los puntos del
+            código en una sola línea. Los bloques de un solo punto no se dibujan y se reportan. Desmarque "Dibujar" o elija
+            tipo "Ignorar" en las descripciones que no quiera dibujar; "Punto" solo las cuenta. Las marcas de inicio/fin
+            y distMax cortan dentro de un bloque.
+        </TextBlock>
+        <TextBlock x:Name="IntroText" Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8">
             Revise a qué código destino va cada descripción encontrada en los puntos. El mapa es interno: nada cambia en el
             dibujo salvo que active las opciones de abajo. Las filas sin código destino no se dibujan y se reportan como
             "sin resolver". La capa de las líneas con lados recibe el sufijo -IZQ / -DER al dibujar. Las marcas de la
@@ -113,6 +121,14 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
+                <DataGridTextColumn x:Name="BlockInfoColumn" Header="Bloques" Width="90" IsReadOnly="True" Visibility="Collapsed"
+                                    Binding="{Binding BlockInfo}" SortMemberPath="BlockInfo">
+                    <DataGridTextColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="ToolTip" Value="Corridas de filas consecutivas con esta descripción en el archivo y tamaño de la más larga" />
+                        </Style>
+                    </DataGridTextColumn.HeaderStyle>
+                </DataGridTextColumn>
                 <DataGridTemplateColumn Header="Código destino" Width="160" SortMemberPath="DestinationCode">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -151,8 +167,26 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
-                <DataGridCheckBoxColumn Header="Por lado" Width="65" SortMemberPath="SplitBySide"
+                <DataGridCheckBoxColumn x:Name="SplitBySideColumn" Header="Por lado" Width="65" SortMemberPath="SplitBySide"
                                         Binding="{Binding SplitBySide, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridTemplateColumn x:Name="JoinColumn" Header="Unión" Width="120" SortMemberPath="BlockJoinLabel" Visibility="Collapsed">
+                    <DataGridTemplateColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="ToolTip" Value="Por bloque: una polilínea abierta por bloque. Bloque cerrado: polígono por bloque (3 o más puntos). Continua: todos los puntos del código en una sola línea." />
+                        </Style>
+                    </DataGridTemplateColumn.HeaderStyle>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding BlockJoinLabel}" Margin="4,0" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <ComboBox ItemsSource="{Binding DataContext.JoinOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      SelectedItem="{Binding BlockJoinLabel, UpdateSourceTrigger=PropertyChanged}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Capa" Width="*" Binding="{Binding LayerBase, UpdateSourceTrigger=LostFocus}" SortMemberPath="LayerBase" />
                 <DataGridTextColumn Header="Color (ACI)" Width="80" Binding="{Binding ColorIndex, UpdateSourceTrigger=LostFocus}" SortMemberPath="ColorIndex" />
                 <DataGridCheckBoxColumn Header="Dibujar" Width="60" SortMemberPath="Draw"
@@ -181,10 +215,10 @@
         <!-- Opciones de dibujo -->
         <GroupBox Grid.Row="4" Header="Al dibujar" Margin="0,8,0,0" Padding="8,2">
             <WrapPanel>
-                <CheckBox Margin="0,2,16,2" IsChecked="{Binding UpdateDescriptionsInDrawing}"
+                <CheckBox x:Name="UpdateDescriptionsCheck" Margin="0,2,16,2" IsChecked="{Binding UpdateDescriptionsInDrawing}"
                           Content="Actualizar descripciones en el dibujo"
                           ToolTip="Reescribe la descripción cruda de cada punto resuelto con su código destino, conservando marcas y series (cumeta f → CUNETA F)" />
-                <CheckBox Margin="0,2,16,2" IsChecked="{Binding MovePointObjectsToLayer}"
+                <CheckBox x:Name="MovePointsCheck" Margin="0,2,16,2" IsChecked="{Binding MovePointObjectsToLayer}"
                           Content="Mover objetos puntuales a su capa"
                           ToolTip="Los puntos de tipo Punto pasan a la capa indicada en su fila (PT-CASA…). Nunca se unen." />
                 <CheckBox Margin="0,2,16,2" IsChecked="{Binding ReportToFile}"

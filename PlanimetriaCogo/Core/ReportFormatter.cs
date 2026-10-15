@@ -22,11 +22,14 @@ public static class ReportFormatter
         var unlimited = maxListed <= 0;
         int Cap(int n) => unlimited ? n : Math.Min(n, maxListed);
 
-        lines.Add("--- PLANIMETRIA: resumen ---");
+        lines.Add(result.ByBlocks ? "--- PLANIMETRIACSV (por bloques): resumen ---" : "--- PLANIMETRIA: resumen ---");
+        if (result.SourceDescription.Length > 0)
+            lines.Add($"Origen: {result.SourceDescription}");
         if (result.AxisDescription.Length > 0)
             lines.Add($"Eje: {result.AxisDescription}");
         lines.Add($"Puntos procesados: {result.TotalPoints}");
-        lines.Add($"Líneas creadas: {result.Lines.Count} ({result.PointsInLines} puntos unidos)");
+        lines.Add($"Líneas creadas: {result.Lines.Count} ({result.PointsInLines} puntos unidos)"
+                  + (result.ByBlocks ? $", {result.ClosedLines} cerrada(s)" : ""));
 
         foreach (var group in result.Lines.GroupBy(l => l.Layer).OrderBy(g => g.Key, StringComparer.Ordinal))
         {
@@ -98,7 +101,7 @@ public static class ReportFormatter
     public static string FullText(PlanimetryResult result, string drawingName, DateTime when)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"PlanimetriaCogo — reporte del comando PLANIMETRIA");
+        sb.AppendLine(result.ByBlocks ? "PlanimetriaCogo — reporte del comando PLANIMETRIACSV (por bloques)" : "PlanimetriaCogo — reporte del comando PLANIMETRIA");
         sb.AppendLine($"Dibujo: {drawingName}");
         sb.AppendLine($"Fecha: {when.ToString("yyyy-MM-dd HH:mm:ss", Inv)}");
         sb.AppendLine();
@@ -108,9 +111,11 @@ public static class ReportFormatter
         if (result.Lines.Count > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("Detalle de líneas (capa, código, lado, puntos desde → hasta, cantidad):");
+            sb.AppendLine(result.ByBlocks
+                ? "Detalle de líneas (capa, código, abierta/cerrada, puntos desde → hasta, cantidad):"
+                : "Detalle de líneas (capa, código, lado, puntos desde → hasta, cantidad):");
             foreach (var line in result.Lines)
-                sb.AppendLine($"  {line.Layer}  {line.Code}  {line.Side.ToSpanish()}{(line.Series.HasValue ? $" serie {line.Series}" : "")}  {line.FirstNumber} → {line.LastNumber}  ({line.Points.Count} puntos)");
+                sb.AppendLine($"  {line.Layer}  {line.Code}  {SideOrShape(result, line)}{(line.Series.HasValue ? $" serie {line.Series}" : "")}  {line.FirstNumber} → {line.LastNumber}  ({line.Points.Count} puntos)");
         }
 
         if (result.DescriptionChanges.Count > 0)
@@ -134,10 +139,13 @@ public static class ReportFormatter
         sb.AppendLine("tipo;codigo;lado;capa;punto_desde;punto_hasta;cantidad;detalle");
 
         foreach (var line in result.Lines)
-            Row(sb, "LINEA", line.Code, line.Side.ToSpanish(), line.Layer, line.FirstNumber.ToString(Inv), line.LastNumber.ToString(Inv), line.Points.Count, line.Series.HasValue ? $"serie {line.Series}" : "");
+        {
+            var detail = string.Join(" ", new[] { line.Series.HasValue ? $"serie {line.Series}" : "", line.Closed ? "cerrada" : "" }.Where(s => s.Length > 0));
+            Row(sb, "LINEA", line.Code, result.ByBlocks ? "" : line.Side.ToSpanish(), line.Layer, line.FirstNumber.ToString(Inv), line.LastNumber.ToString(Inv), line.Points.Count, detail);
+        }
 
         foreach (var cut in result.Cuts)
-            Row(sb, "CORTE", cut.From.Code, cut.From.Side.ToSpanish(), "", cut.From.Point.Number.ToString(Inv), cut.To.Point.Number.ToString(Inv), 2, cut.Detail);
+            Row(sb, "CORTE", cut.From.Code, result.ByBlocks ? "" : cut.From.Side.ToSpanish(), "", cut.From.Point.Number.ToString(Inv), cut.To.Point.Number.ToString(Inv), 2, cut.Detail);
 
         foreach (var d in result.Discarded)
             Row(sb, "DESCARTADO", d.Code, "", "", d.Point.Number.ToString(Inv), "", 1, $"{Describe(d.Reason)}: {d.Detail}");
@@ -177,12 +185,15 @@ public static class ReportFormatter
         return text.IndexOfAny(new[] { ';', '"', '\n', '\r' }) >= 0 ? "\"" + text.Replace("\"", "\"\"") + "\"" : text;
     }
 
+    private static string SideOrShape(PlanimetryResult result, LineSequence line) =>
+        result.ByBlocks ? (line.Closed ? "cerrada" : "abierta") : line.Side.ToSpanish();
+
     public static string Describe(DiscardReason reason) => reason switch
     {
         DiscardReason.NoProjection => "no proyectan sobre el eje",
         DiscardReason.BeyondOffsetMax => "fuera de offsetMax",
         DiscardReason.OnAxis => "sobre el eje con código por lados (lado indeterminado)",
-        DiscardReason.Alone => "únicos en su grupo (sin línea)",
+        DiscardReason.Alone => "únicos en su grupo o bloque (sin línea)",
         _ => reason.ToString()
     };
 }

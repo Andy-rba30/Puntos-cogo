@@ -32,6 +32,9 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     public IReadOnlyList<string> OrderOptions { get; } = new[] { "Número de punto", "Progresiva" };
 
+    public IReadOnlyList<string> CsvColumnOrderOptions { get; } =
+        new[] { "PNEZD (número, norte, este, cota, descripción)", "PENZD (número, este, norte, cota, descripción)" };
+
     // ---- Eje y lado ----
     public double OffsetMax { get => _work.OffsetMax; set => Set(v => _work.OffsetMax = v, value); }
     public double AxisTolerance { get => _work.AxisTolerance; set => Set(v => _work.AxisTolerance = v, value); }
@@ -56,6 +59,17 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     public string EndMarksText { get => Join(_work.EndMarks); set => Set(v => _work.EndMarks = SplitMarks(v), value); }
     public string LeftMarksText { get => Join(_work.LeftMarks); set => Set(v => _work.LeftMarks = SplitMarks(v), value); }
     public string RightMarksText { get => Join(_work.RightMarks); set => Set(v => _work.RightMarks = SplitMarks(v), value); }
+
+    // ---- Modo por bloques (PLANIMETRIACSV) ----
+
+    /// <summary>Códigos con bloque cerrado, como texto separado por comas.</summary>
+    public string ClosedBlockCodesText { get => Join(_work.ClosedBlockCodes); set => Set(v => _work.ClosedBlockCodes = SplitMarks(v), value); }
+
+    public string CsvColumnOrderLabel
+    {
+        get => _work.CsvColumnOrder == CsvColumnOrder.PENZD ? CsvColumnOrderOptions[1] : CsvColumnOrderOptions[0];
+        set => Set(v => _work.CsvColumnOrder = v == CsvColumnOrderOptions[1] ? CsvColumnOrder.PENZD : CsvColumnOrder.PNEZD, value);
+    }
 
     // ---- Acciones sobre el dibujo ----
     public bool MovePointObjectsToLayer { get => _work.MovePointObjectsToLayer; set => Set(v => _work.MovePointObjectsToLayer = v, value); }

@@ -96,6 +96,25 @@
             </Grid>
         </GroupBox>
 
+        <GroupBox Header="Modo por bloques (PLANIMETRIACSV: planimetría desde un archivo, en el orden de campo)">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition /><RowDefinition /><RowDefinition />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource Label}" Text="Códigos con bloque cerrado (polígono):" />
+                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ClosedBlockCodesText, UpdateSourceTrigger=LostFocus}"
+                         ToolTip="Separados por comas. Sus bloques de 3 o más puntos se dibujan como polilínea cerrada; el resto, abierta." />
+                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Label}" Text="Orden de columnas del archivo:" />
+                <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,2" ItemsSource="{Binding CsvColumnOrderOptions}" SelectedItem="{Binding CsvColumnOrderLabel}" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource Label}" Foreground="#666" TextWrapping="Wrap"
+                           Text="En este modo se usan distMax, las marcas de inicio/fin y las series; el eje y el salto de progresiva no aplican. El código del eje se propone como línea continua." />
+            </Grid>
+        </GroupBox>
+
         <GroupBox Header="Acciones sobre el dibujo (apagadas por defecto: el plugin no deja rastro salvo las líneas)">
             <StackPanel>
                 <CheckBox IsChecked="{Binding MovePointObjectsToLayer}" Content="Mover los puntos de tipo Punto a la capa indicada en su fila" />

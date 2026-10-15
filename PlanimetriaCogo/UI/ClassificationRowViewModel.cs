@@ -11,6 +11,7 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
     private CodeCatalog _catalog;
     private readonly Settings _settings;
     private bool _isSelected;
+    private string _blockInfo = "";
 
     public ClassificationRowViewModel(CodeRule rule, CodeCatalog catalog, Settings settings)
     {
@@ -22,6 +23,16 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
     public CodeRule Rule { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>true en la ventana del modo por bloques: al cambiar el código destino se propone también la unión.</summary>
+    public bool BlockMode { get; set; }
+
+    /// <summary>Columna "Bloques" del modo por bloques: cuántos bloques forma la descripción y el más largo.</summary>
+    public string BlockInfo
+    {
+        get => _blockInfo;
+        set { if (_blockInfo != value) { _blockInfo = value ?? ""; OnPropertyChanged(); } }
+    }
 
     /// <summary>Marca para "Unificar selección".</summary>
     public bool IsSelected
@@ -43,7 +54,7 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
             var normalized = DescriptionNormalizer.Normalize(value);
             if (normalized == Rule.DestinationCode)
                 return;
-            ClassificationProposer.ApplyDestination(Rule, normalized, _catalog, _settings);
+            ClassificationProposer.ApplyDestination(Rule, normalized, _catalog, _settings, BlockMode);
             RaiseAll();
         }
     }
@@ -69,6 +80,20 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
     {
         get => Rule.SplitBySide;
         set { if (Rule.SplitBySide != value) { Rule.SplitBySide = value; OnPropertyChanged(); } }
+    }
+
+    /// <summary>Unión en el modo por bloques, en español: Por bloque / Bloque cerrado / Continua.</summary>
+    public string BlockJoinLabel
+    {
+        get => Rule.BlockJoin.ToSpanish();
+        set
+        {
+            var join = BlockJoinNames.FromSpanish(value);
+            if (join == Rule.BlockJoin)
+                return;
+            Rule.BlockJoin = join;
+            OnPropertyChanged();
+        }
     }
 
     public string LayerBase
@@ -121,7 +146,7 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
     /// <summary>Propiedades que el usuario edita en la tabla y que la edición en bloque copia a las demás filas marcadas.</summary>
     public static readonly string[] EditableProperties =
     {
-        nameof(DestinationCode), nameof(KindLabel), nameof(SplitBySide), nameof(LayerBase), nameof(ColorIndex), nameof(Draw)
+        nameof(DestinationCode), nameof(KindLabel), nameof(SplitBySide), nameof(LayerBase), nameof(ColorIndex), nameof(Draw), nameof(BlockJoinLabel)
     };
 
     /// <summary>Valor actual de una propiedad editable (para detectar si una edición cambió algo). null si no es editable.</summary>
@@ -133,6 +158,7 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
         nameof(LayerBase) => LayerBase,
         nameof(ColorIndex) => ColorIndex,
         nameof(Draw) => Draw,
+        nameof(BlockJoinLabel) => BlockJoinLabel,
         _ => null
     };
 
@@ -171,6 +197,10 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
                 if (Draw == source.Draw) return false;
                 Draw = source.Draw;
                 return true;
+            case nameof(BlockJoinLabel):
+                if (BlockJoinLabel == source.BlockJoinLabel) return false;
+                BlockJoinLabel = source.BlockJoinLabel;
+                return true;
             default:
                 return false;
         }
@@ -188,6 +218,7 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(LayerBase));
         OnPropertyChanged(nameof(ColorIndex));
         OnPropertyChanged(nameof(Draw));
+        OnPropertyChanged(nameof(BlockJoinLabel));
         OnPropertyChanged(nameof(IsResolved));
         OnPropertyChanged(nameof(IsLine));
         OnPropertyChanged(nameof(Status));

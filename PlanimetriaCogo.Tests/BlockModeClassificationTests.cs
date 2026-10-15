@@ -15,7 +15,7 @@ public class BlockModeClassificationTests
         descriptions.Select((d, i) => new SurveyPoint { Number = (uint)(i + 1), RawDescription = d, Sequence = i + 1, SourceId = (i + 1).ToString() }).ToList();
 
     [Fact]
-    public void BuildBlockRules_ProposesClosedForCasa_ContinuousForAxis_BlockForRest()
+    public void BuildBlockRules_ProposesClosedForCasa_BlockForEveryOtherCode()
     {
         var settings = new Settings();
         var rules = ClassificationProposer.BuildBlockRules(Points("casa", "casa", "e", "v", "Pt", "3015396"), CodeCatalog.Default, settings);
@@ -25,12 +25,32 @@ public class BlockModeClassificationTests
         Assert.Equal(BlockJoin.ClosedBlock, casa.BlockJoin);
         Assert.Equal("PL-CASA", casa.LayerBase);
 
-        Assert.Equal(BlockJoin.Continuous, rules.Single(r => r.Original == "e").BlockJoin);
+        // Único criterio: el archivo. Cada bloque es un elemento separado, también para el eje y los objetos puntuales.
+        Assert.Equal(BlockJoin.Block, rules.Single(r => r.Original == "e").BlockJoin);
         Assert.Equal(BlockJoin.Block, rules.Single(r => r.Original == "v").BlockJoin);
         var pt = rules.Single(r => r.Original == "Pt");
-        Assert.Equal(CodeKind.Point, pt.Kind);
+        Assert.Equal(CodeKind.Line, pt.Kind);
         Assert.Equal(BlockJoin.Block, pt.BlockJoin);
+        Assert.Equal("PL-PT", pt.LayerBase);
         Assert.Equal(CodeKind.Ignore, rules.Single(r => r.Original == "3015396").Kind);
+    }
+
+    [Fact]
+    public void BuildRules_BlockMarkDoesNotCreateARow()
+    {
+        var settings = new Settings();
+        var rules = ClassificationProposer.BuildBlockRules(Points("casa B", "casa", "casa", "cuneta B", "cuneta", "b B", "PilonA B", "PilonA"), CodeCatalog.Default, settings);
+
+        Assert.Equal(new[] { "casa", "PilonA", "cuneta", "b" }, rules.Select(r => r.Original));
+        Assert.Equal(3, rules.Single(r => r.Original == "casa").Count);
+        Assert.Equal("CASA", rules.Single(r => r.Original == "casa").DestinationCode);
+        Assert.Equal("CUNETA", rules.Single(r => r.Original == "cuneta").DestinationCode);
+        Assert.Equal("BORDE", rules.Single(r => r.Original == "b").DestinationCode);
+        Assert.Equal(CodeKind.Line, rules.Single(r => r.Original == "PilonA").Kind);
+
+        // Sin marcas configuradas, "casa B" vuelve a ser una descripción propia.
+        var noMarks = ClassificationProposer.BuildBlockRules(Points("casa B", "casa"), CodeCatalog.Default, new Settings { BlockStartMarks = new List<string>() });
+        Assert.Equal(2, noMarks.Count);
     }
 
     [Fact]

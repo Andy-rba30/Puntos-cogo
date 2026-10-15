@@ -32,6 +32,10 @@ public class SingleLayerAndNamesTests
         var settings = new Settings { SingleLayer = true, SingleLayerName = "Plani:metría" };
         var points = new[] { P(1, "casa", 0, 0), P(2, "casa", 1, 0), P(3, "casa", 1, 1), P(4, "Pt", 5, 5) };
         var rules = ClassificationProposer.BuildBlockRules(points, CodeCatalog.Default, settings);
+        // En bloques todo se une; el tipo Punto se elige a mano.
+        var pt = rules.Single(r => r.Original == "Pt");
+        pt.Kind = CodeKind.Point;
+        pt.LayerBase = LayerNames.ProposeBase(pt, settings);
 
         var result = new BlockPlanimetryEngine(settings).Run(points, rules);
 
@@ -50,15 +54,24 @@ public class SingleLayerAndNamesTests
     }
 
     [Fact]
-    public void CodeFromDescription_KeepsTextExactly()
+    public void CodeFromDescription_KeepsTextExactly_WithoutMarks()
     {
-        Assert.Equal("cunetq B", ClassificationProposer.CodeFromDescription("cunetq B"));
+        // Las marcas no son parte del nombre: "cunetq B" y "cunetq" deben ser el mismo código y el mismo bloque.
+        Assert.Equal("cunetq", ClassificationProposer.CodeFromDescription("cunetq B"));
+        Assert.Equal("Cuneta", ClassificationProposer.CodeFromDescription("Cuneta B"));
+        Assert.Equal("cuneta", ClassificationProposer.CodeFromDescription("cuneta f"));
+        Assert.Equal("cuneta", ClassificationProposer.CodeFromDescription("cuneta I"));
+        Assert.Equal("cuneta", ClassificationProposer.CodeFromDescription("cuneta.."));
+        // El resto se respeta tal cual: mayúsculas, minúsculas, tildes, espacios interiores y números.
         Assert.Equal("Muro  alto", ClassificationProposer.CodeFromDescription("  Muro  alto "));
-        Assert.Equal("cuneta f", ClassificationProposer.CodeFromDescription("cuneta f"));
         Assert.Equal("Árbol", ClassificationProposer.CodeFromDescription("Árbol"));
+        Assert.Equal("PG5394", ClassificationProposer.CodeFromDescription("PG5394"));
+        Assert.Equal("B", ClassificationProposer.CodeFromDescription("B")); // la primera palabra siempre es el código
         Assert.Null(ClassificationProposer.CodeFromDescription(""));
         Assert.Null(ClassificationProposer.CodeFromDescription("   "));
         Assert.Null(ClassificationProposer.CodeFromDescription("3015396"));
+        // Sin interpretar marcas, el texto queda entero.
+        Assert.Equal("cunetq B", ClassificationProposer.CodeFromDescription("cunetq B", new Settings { UseDescriptionMarks = false }));
     }
 
     [Fact]
@@ -72,53 +85,101 @@ public class SingleLayerAndNamesTests
         Assert.Equal(BlockJoin.ClosedBlock, rule.BlockJoin);
         Assert.Equal("PL-casa", rule.LayerBase);
 
-        var axis = new CodeRule { Original = "eje" };
-        ClassificationProposer.ApplyDestination(axis, "eje", CodeCatalog.Default, settings, blockMode: true, exact: true);
-        Assert.Equal(BlockJoin.Continuous, axis.BlockJoin);
+        // "e" exacto toma del catálogo lo de su código (EJE, alias e): sin lados, color 2; en bloques, uno por bloque.
+        var axis = new CodeRule { Original = "e" };
+        ClassificationProposer.ApplyDestination(axis, "e", CodeCatalog.Default, settings, blockMode: true, exact: true);
+        Assert.Equal("e", axis.DestinationCode);
+        Assert.Equal(BlockJoin.Block, axis.BlockJoin);
         Assert.False(axis.SplitBySide);
+        Assert.Equal(2, axis.ColorIndex);
 
-        var points = new[] { P(1, "eje", 0, 0), P(2, "eje", 10, 0), P(3, "v", 5, 3) };
-        Assert.Equal(2, AxisBuilder.SelectAxisPoints(points, new[] { axis, new CodeRule { Original = "v", DestinationCode = "VEREDA" } }, settings).Count);
+        var eje = new CodeRule { Original = "eje" };
+        ClassificationProposer.ApplyDestination(eje, "eje", CodeCatalog.Default, settings, exact: true);
+        var points = new[] { P(1, "eje", 0, 0), P(2, "eje B", 10, 0), P(3, "v", 5, 3) };
+        Assert.Equal(2, AxisBuilder.SelectAxisPoints(points, new[] { eje, new CodeRule { Original = "v", DestinationCode = "VEREDA" } }, settings).Count);
     }
 
     [Fact]
     public void UseDescriptionAsCode_ResolvesUnknownAtLoad()
     {
         var settings = new Settings { UseDescriptionAsCode = true };
-        var points = new[] { P(1, "cunetq B", 0, 0), P(2, "v", 0, 0), P(3, "", 0, 0), P(4, "3015396", 0, 0) };
+        var points = new[] { P(1, "zanjq B", 0, 0), P(2, "zanjq", 0, 0), P(3, "v", 0, 0), P(4, "", 0, 0), P(5, "3015396", 0, 0) };
         var rules = ClassificationProposer.BuildRules(points, CodeCatalog.Default, settings);
 
-        var unknown = rules.Single(r => r.Original == "cunetq B");
-        Assert.Equal("cunetq B", unknown.DestinationCode);
+        var unknown = rules.Single(r => r.Original == "zanjq");
+        Assert.Equal(2, unknown.Count); // "zanjq B" es la misma fila
+        Assert.Equal("zanjq", unknown.DestinationCode);
         Assert.Equal(CodeKind.Line, unknown.Kind);
-        Assert.Equal("PL-cunetq B", unknown.LayerBase);
+        Assert.Equal("PL-zanjq", unknown.LayerBase);
         Assert.Equal("VEREDA", rules.Single(r => r.Original == "v").DestinationCode); // el catálogo sigue mandando
         Assert.Equal(CodeKind.Ignore, rules.Single(r => r.Original == "").Kind);
         Assert.Equal(CodeKind.Ignore, rules.Single(r => r.Original == "3015396").Kind);
     }
 
     [Fact]
-    public void UseNamesAsCodes_WithoutSelection_OnlyUnresolvedRows()
+    public void UseNamesAsCodes_WithoutSelection_AllRows()
     {
         var settings = new Settings();
-        var points = new[] { P(1, "cunetq B", 0, 0), P(2, "v", 0, 0), P(3, "zzz", 0, 0), P(4, "", 0, 0) };
+        var points = new[] { P(1, "zanjq B", 0, 0), P(2, "zanjq", 0, 0), P(3, "v", 0, 0), P(4, "zzz", 0, 0), P(5, "", 0, 0) };
         var rules = ClassificationProposer.BuildBlockRules(points, CodeCatalog.Default, settings);
         var vm = new ClassificationViewModel(rules, CodeCatalog.Default, settings) { BlockMode = true };
-        Assert.Equal(2, vm.PointsUnresolved);
+        Assert.Equal(3, vm.PointsUnresolved);
 
-        Assert.Equal(2, vm.UseNamesAsCodes());
+        Assert.Equal(3, vm.UseNamesAsCodes());
 
-        Assert.Equal("cunetq B", vm.Rows.Single(r => r.Rule.Original == "cunetq B").DestinationCode);
+        Assert.Equal("zanjq", vm.Rows.Single(r => r.Rule.Original == "zanjq").DestinationCode);
         Assert.Equal("zzz", vm.Rows.Single(r => r.Rule.Original == "zzz").DestinationCode);
         Assert.Equal(BlockJoin.Block, vm.Rows.Single(r => r.Rule.Original == "zzz").Rule.BlockJoin);
-        Assert.Equal("VEREDA", vm.Rows.Single(r => r.Rule.Original == "v").DestinationCode); // resuelta: no se toca
+        Assert.Equal("v", vm.Rows.Single(r => r.Rule.Original == "v").DestinationCode); // también lo que conocía el catálogo
         Assert.Equal(CodeKind.Ignore, vm.Rows.Single(r => r.Rule.Original == "").Rule.Kind);
         Assert.Equal(0, vm.PointsUnresolved);
-        Assert.Contains("2 fila(s)", vm.StatusMessage);
-        Assert.Contains("cunetq B", vm.AvailableCodes);
+        Assert.Contains("3 fila(s)", vm.StatusMessage);
+        Assert.Contains("zanjq", vm.AvailableCodes);
 
         Assert.Equal(0, vm.UseNamesAsCodes());
-        Assert.Equal("No hay filas sin resolver.", vm.StatusMessage);
+        Assert.Equal("Todas las filas ya usan su nombre como código.", vm.StatusMessage);
+    }
+
+    [Fact]
+    public void UseNamesAsCodes_WorksAfterAnyOtherAction_NotOnlyFirst()
+    {
+        var settings = new Settings();
+        var points = new[] { P(1, "cunetq B", 0, 0), P(2, "cunetq", 0, 0), P(3, "cumeta", 0, 0), P(4, "Cuneta", 0, 0) };
+        var vm = new ClassificationViewModel(ClassificationProposer.BuildBlockRules(points, CodeCatalog.Default, settings), CodeCatalog.Default, settings) { BlockMode = true };
+
+        // Primero otro botón: "Sugerir similares" resuelve las filas con códigos del catálogo.
+        vm.SuggestSimilar();
+        Assert.All(vm.Rows, r => Assert.True(r.IsResolved));
+
+        // Una sola fila resaltada en la tabla (la fila actual tras un clic) no es una selección.
+        var current = vm.Rows.Single(r => r.Rule.Original == "cumeta");
+        Assert.Equal(3, vm.UseNamesAsCodes(new[] { current }));
+        Assert.Equal(new[] { "cunetq", "Cuneta", "cumeta" }, vm.Rows.Select(r => r.DestinationCode));
+
+        // Después de restablecer y de editar a mano, vuelve a funcionar igual.
+        vm.ResetToInitial();
+        vm.Rows.Single(r => r.Rule.Original == "Cuneta").DestinationCode = "ZANJA";
+        Assert.Equal(3, vm.UseNamesAsCodes());
+        Assert.Equal(new[] { "cunetq", "Cuneta", "cumeta" }, vm.Rows.Select(r => r.DestinationCode));
+    }
+
+    [Fact]
+    public void ExactCode_IsNotUppercased_WhenTheCellIsReentered_AndBulkEditCopiesItExactly()
+    {
+        var settings = new Settings();
+        var points = new[] { P(1, "cunetq", 0, 0), P(2, "zzz", 0, 0) };
+        var vm = new ClassificationViewModel(ClassificationProposer.BuildBlockRules(points, CodeCatalog.Default, settings), CodeCatalog.Default, settings) { BlockMode = true };
+        vm.UseNamesAsCodes();
+        var row = vm.Rows.Single(r => r.Rule.Original == "cunetq");
+
+        // La celda editable devuelve el mismo texto al perder el foco: no debe pasar a mayúsculas.
+        row.DestinationCode = "cunetq";
+        Assert.Equal("cunetq", row.DestinationCode);
+
+        // Edición en bloque: el código se copia tal cual a la otra fila seleccionada.
+        var other = vm.Rows.Single(r => r.Rule.Original == "zzz");
+        Assert.True(other.CopyFrom(row, nameof(ClassificationRowViewModel.DestinationCode)));
+        Assert.Equal("cunetq", other.DestinationCode);
     }
 
     [Fact]
@@ -138,9 +199,20 @@ public class SingleLayerAndNamesTests
         Assert.Equal("VEREDA", vm.Rows.Single(r => r.Rule.Original == "ver").DestinationCode);
         Assert.False(vm.Rows.Single(r => r.Rule.Original == "zzz").IsResolved); // había selección: lo demás no se toca
 
-        // Selección de la tabla como alternativa a la casilla Sel.
-        Assert.Equal(1, vm.UseNamesAsCodes(new[] { vm.Rows.Single(r => r.Rule.Original == "zzz") }));
+        // Varias filas seleccionadas en la tabla: alternativa a la casilla Sel.
+        var grid = new[] { vm.Rows.Single(r => r.Rule.Original == "zzz"), vm.Rows.Single(r => r.Rule.Original == "ver") };
+        Assert.Equal(2, vm.UseNamesAsCodes(grid));
         Assert.Equal("zzz", vm.Rows.Single(r => r.Rule.Original == "zzz").DestinationCode);
+        Assert.Equal("ver", vm.Rows.Single(r => r.Rule.Original == "ver").DestinationCode);
+
+        // Una fila en Ignorar cambia solo si se marca.
+        var ignored = vm.Rows.Single(r => r.Rule.Original == "zzz");
+        ignored.KindLabel = CodeKind.Ignore.ToSpanish();
+        Assert.Equal(0, vm.UseNamesAsCodes());
+        Assert.Equal(CodeKind.Ignore, ignored.Rule.Kind);
+        ignored.IsSelected = true;
+        Assert.Equal(1, vm.UseNamesAsCodes());
+        Assert.Equal(CodeKind.Line, ignored.Rule.Kind);
     }
 
     [Fact]

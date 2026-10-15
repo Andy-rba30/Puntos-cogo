@@ -92,6 +92,12 @@ public sealed class PlanimetryResult
     /// <summary>Origen de los puntos en el modo por bloques (nombre del archivo CSV) para el reporte.</summary>
     public string SourceDescription { get; set; } = "";
 
+    /// <summary>Modo por bloques: tramos dentro de un bloque más largos que distMax. Se dibujan (el bloque manda); se listan para revisarlos.</summary>
+    public List<LineCut> LongJumps { get; } = new();
+
+    /// <summary>Modo por bloques: bloques "Bloque cerrado" de 3 o más puntos que quedaron abiertos por no formar un polígono (fachadas).</summary>
+    public int ClosedBlocksLeftOpen { get; set; }
+
     public int ClosedLines
     {
         get

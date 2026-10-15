@@ -65,7 +65,7 @@
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
-                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource Label}" Text="Orden dentro de cada grupo:" />
@@ -91,7 +91,11 @@
                 <TextBlock Grid.Row="7" Grid.Column="0" Style="{StaticResource Label}" Text="Marcas de lado derecho:" />
                 <TextBox Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding RightMarksText, UpdateSourceTrigger=LostFocus}" IsEnabled="{Binding UseDescriptionMarks}" />
 
-                <CheckBox Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding SplitSeries}"
+                <TextBlock Grid.Row="8" Grid.Column="0" Style="{StaticResource Label}" Text="Marcas de inicio de bloque:" />
+                <TextBox Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding BlockStartMarksText, UpdateSourceTrigger=LostFocus}" IsEnabled="{Binding UseDescriptionMarks}"
+                         ToolTip="Separadas por comas (por defecto B). 'casa B' abre un bloque nuevo de casa; la marca no forma parte del código: 'casa B' y 'casa' son la misma fila." />
+
+                <CheckBox Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding SplitSeries}"
                           Content="Sufijo numérico de serie (CUNETA1, CUNETA2) produce líneas distintas" />
             </Grid>
         </GroupBox>
@@ -117,7 +121,7 @@
                 <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Label}" Text="Orden de columnas del archivo:" />
                 <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,2" ItemsSource="{Binding CsvColumnOrderOptions}" SelectedItem="{Binding CsvColumnOrderLabel}" />
                 <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource Label}" Foreground="#666" TextWrapping="Wrap"
-                           Text="En este modo se usan distMax, las marcas de inicio/fin y las series; el eje y el salto de progresiva no aplican. El código del eje se propone como línea continua." />
+                           Text="En este modo el único criterio es el archivo: cada bloque (filas consecutivas con el mismo código, en su orden; una marca de inicio de bloque abre otro) es una polilínea separada. distMax no corta: los tramos más largos solo se reportan. Los bloques cerrados se cierran solo si forman un polígono." />
             </Grid>
         </GroupBox>
 

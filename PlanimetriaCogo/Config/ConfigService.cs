@@ -96,6 +96,7 @@ public sealed class ConfigService
         s.EndMarks ??= d.EndMarks;
         s.LeftMarks ??= d.LeftMarks;
         s.RightMarks ??= d.RightMarks;
+        s.BlockStartMarks ??= d.BlockStartMarks;
         s.ClosedBlockCodes ??= d.ClosedBlockCodes;
         s.ReportFolder ??= "";
         if (string.IsNullOrWhiteSpace(s.SingleLayerName)) s.SingleLayerName = d.SingleLayerName;

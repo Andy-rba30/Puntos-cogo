@@ -30,6 +30,8 @@ public static class ReportFormatter
         lines.Add($"Puntos procesados: {result.TotalPoints}");
         lines.Add($"Líneas creadas: {result.Lines.Count} ({result.PointsInLines} puntos unidos)"
                   + (result.ByBlocks ? $", {result.ClosedLines} cerrada(s)" : ""));
+        if (result.ClosedBlocksLeftOpen > 0)
+            lines.Add($"  Bloques cerrados que quedaron abiertos (fachada o ángulo, no encierran un polígono): {result.ClosedBlocksLeftOpen}");
 
         foreach (var group in result.Lines.GroupBy(l => l.Layer).OrderBy(g => g.Key, StringComparer.Ordinal))
         {
@@ -53,6 +55,15 @@ public static class ReportFormatter
                 lines.Add($"  {cut.From.Code}: punto {cut.From.Point.Number} → {cut.To.Point.Number} ({cut.Detail})");
             if (result.Cuts.Count > Cap(result.Cuts.Count))
                 lines.Add($"  … y {result.Cuts.Count - maxListed} más");
+        }
+
+        if (result.LongJumps.Count > 0)
+        {
+            lines.Add($"Tramos largos dentro de un bloque (se dibujan, revíselos): {result.LongJumps.Count}");
+            foreach (var jump in result.LongJumps.Take(Cap(result.LongJumps.Count)))
+                lines.Add($"  {jump.From.Code}: punto {jump.From.Point.Number} → {jump.To.Point.Number} ({jump.Detail})");
+            if (result.LongJumps.Count > Cap(result.LongJumps.Count))
+                lines.Add($"  … y {result.LongJumps.Count - maxListed} más");
         }
 
         if (result.SideDiscrepancies.Count > 0)

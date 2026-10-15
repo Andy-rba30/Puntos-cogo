@@ -45,14 +45,18 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
 
     public int Count => Rule.Count;
 
-    /// <summary>Código destino. Al cambiarlo se vuelven a proponer tipo, lados, capa y color.</summary>
+    /// <summary>
+    /// Código destino. Al cambiarlo se vuelven a proponer tipo, lados, capa y color. Lo escrito se normaliza
+    /// (mayúsculas, sin tildes), pero un texto que solo difiere del actual en mayúsculas o espacios no lo cambia: así
+    /// abrir y cerrar la celda de un código exacto ("Usar nombre como código") no lo convierte en mayúsculas.
+    /// </summary>
     public string DestinationCode
     {
         get => Rule.DestinationCode;
         set
         {
             var normalized = DescriptionNormalizer.Normalize(value);
-            if (normalized == Rule.DestinationCode)
+            if (normalized == DescriptionNormalizer.Normalize(Rule.DestinationCode))
                 return;
             ClassificationProposer.ApplyDestination(Rule, normalized, _catalog, _settings, BlockMode);
             RaiseAll();
@@ -60,13 +64,14 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Código destino exacto, sin normalizar ("Usar nombre como código"): respeta mayúsculas, minúsculas, tildes y
-    /// espacios. Devuelve true si cambió.
+    /// Código destino exacto, sin normalizar ("Usar nombre como código", edición en bloque): respeta mayúsculas,
+    /// minúsculas, tildes y espacios. Una fila en Ignorar se reactiva aunque el código ya fuera ese.
+    /// Devuelve true si cambió.
     /// </summary>
     public bool SetDestinationCodeExact(string? code)
     {
         var text = (code ?? "").Trim();
-        if (text == Rule.DestinationCode)
+        if (text == Rule.DestinationCode && Rule.Kind != CodeKind.Ignore)
             return false;
         ClassificationProposer.ApplyDestination(Rule, text, _catalog, _settings, BlockMode, exact: true);
         RaiseAll();
@@ -188,9 +193,9 @@ public sealed class ClassificationRowViewModel : INotifyPropertyChanged
         switch (propertyName)
         {
             case nameof(DestinationCode):
+                // Se copia tal cual: un código exacto ("cuneta") no debe llegar en mayúsculas a las demás filas.
                 if (DestinationCode == source.DestinationCode) return false;
-                DestinationCode = source.DestinationCode;
-                return true;
+                return SetDestinationCodeExact(source.DestinationCode);
             case nameof(KindLabel):
                 if (KindLabel == source.KindLabel) return false;
                 KindLabel = source.KindLabel;

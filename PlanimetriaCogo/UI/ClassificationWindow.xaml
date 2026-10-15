@@ -25,12 +25,13 @@
 
         <!-- Explicación -->
         <TextBlock x:Name="IntroBlockText" Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed">
-            Modo por bloques: los puntos se recorren en el orden del archivo, tal como se tomaron en campo, sin eje ni
-            lados. Un bloque es una corrida de filas consecutivas con el mismo código destino; cada bloque produce una
-            polilínea (abierta, o cerrada si la columna Unión dice "Bloque cerrado"); "Continua" une todos los puntos del
-            código en una sola línea. Los bloques de un solo punto no se dibujan y se reportan. Desmarque "Dibujar" o elija
-            tipo "Ignorar" en las descripciones que no quiera dibujar; "Punto" solo las cuenta. Las marcas de inicio/fin
-            y distMax cortan dentro de un bloque.
+            Modo por bloques: el único criterio es el archivo. Los puntos se recorren en su orden, tal como se tomaron en
+            campo, y cada bloque es un elemento separado: una corrida de filas consecutivas con el mismo código destino.
+            El bloque termina en cuanto aparece otro código o una marca de inicio de bloque ("casa B" abre una casa nueva;
+            la marca no es parte del código, por eso "casa B" y "casa" son una sola fila). Cada bloque produce una
+            polilínea abierta, o cerrada si la columna Unión dice "Bloque cerrado" y el bloque forma un polígono. Los
+            bloques de un solo punto no se dibujan y se reportan. Desmarque "Dibujar" o elija tipo "Ignorar" en lo que no
+            quiera dibujar; "Punto" solo cuenta los puntos.
         </TextBlock>
         <TextBlock x:Name="IntroText" Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8">
             Revise a qué código destino va cada descripción encontrada en los puntos. El mapa es interno: nada cambia en el
@@ -125,7 +126,7 @@
                                     Binding="{Binding BlockInfo}" SortMemberPath="BlockInfo">
                     <DataGridTextColumn.HeaderStyle>
                         <Style TargetType="DataGridColumnHeader">
-                            <Setter Property="ToolTip" Value="Corridas de filas consecutivas con esta descripción en el archivo y tamaño de la más larga" />
+                            <Setter Property="ToolTip" Value="Bloques de esta descripción en el archivo (filas consecutivas; una marca B abre otro) y cantidad de puntos del más largo" />
                         </Style>
                     </DataGridTextColumn.HeaderStyle>
                 </DataGridTextColumn>
@@ -172,7 +173,7 @@
                 <DataGridTemplateColumn x:Name="JoinColumn" Header="Unión" Width="120" SortMemberPath="BlockJoinLabel" Visibility="Collapsed">
                     <DataGridTemplateColumn.HeaderStyle>
                         <Style TargetType="DataGridColumnHeader">
-                            <Setter Property="ToolTip" Value="Por bloque: una polilínea abierta por bloque. Bloque cerrado: polígono por bloque (3 o más puntos). Continua: todos los puntos del código en una sola línea." />
+                            <Setter Property="ToolTip" Value="Por bloque: una polilínea abierta por bloque. Bloque cerrado: se cierra solo si el bloque forma un polígono (4 o más puntos, cierre a escuadra); una fachada queda abierta. Continua: todos los puntos del código en una sola línea, sin respetar bloques." />
                         </Style>
                     </DataGridTemplateColumn.HeaderStyle>
                     <DataGridTemplateColumn.CellTemplate>
@@ -201,7 +202,7 @@
                     ToolTip="Agrupa descripciones parecidas (mayúsculas, errores de tipeo, prefijos) y propone un código destino común"
                     Click="SuggestButton_Click" />
             <Button DockPanel.Dock="Left" Content="Usar nombre como código" Style="{StaticResource ToolButton}"
-                    ToolTip="Cada fila toma su propia descripción, tal cual (mayúsculas, minúsculas y espacios), como código destino, sin catálogo ni similitud. Con filas marcadas o seleccionadas actúa sobre ellas; si no, sobre todas las que están sin resolver."
+                    ToolTip="Cada fila toma su propia descripción como código destino, sin marcas (cunetq B → cunetq) y con mayúsculas, minúsculas y espacios respetados, sin catálogo ni similitud. Con filas marcadas en Sel. o varias filas seleccionadas actúa sobre ellas; si no, sobre todas las filas, en cualquier momento (también después de Sugerir similares o de cargar un perfil). Restablecer vuelve a la propuesta del catálogo."
                     Click="UseNamesButton_Click" />
             <TextBlock DockPanel.Dock="Left" Text="Código:" VerticalAlignment="Center" Margin="12,0,4,0" />
             <ComboBox DockPanel.Dock="Left" Width="140" IsEditable="True"

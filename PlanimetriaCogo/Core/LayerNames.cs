@@ -28,6 +28,10 @@ public static class LayerNames
         return Sanitize(prefix + rule.DestinationCode);
     }
 
+    /// <summary>Con <see cref="Settings.SingleLayer"/> toda línea va a la capa única; si no, a la capa calculada.</summary>
+    public static string ApplySingleLayer(string computedLayer, Settings settings) =>
+        settings.SingleLayer ? Sanitize(settings.SingleLayerName) : computedLayer;
+
     /// <summary>Capa final de una línea: base + sufijo de lado cuando el código se separa por lado.</summary>
     public static string ForLine(string layerBase, Side side, bool splitBySide, Settings settings)
     {

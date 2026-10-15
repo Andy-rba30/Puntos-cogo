@@ -132,8 +132,9 @@ public class Commands
             var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
             foreach (var line in result.Lines)
             {
-                var layerId = LayerManager.EnsureLayer(db, tr, line.Layer, line.ColorIndex);
-                GeometryBuilder.AddPolyline3d(tr, modelSpace, line, layerId);
+                // Capa única: la capa se crea en color 7 y cada línea lleva el color de su fila como color de entidad.
+                var layerId = LayerManager.EnsureLayer(db, tr, line.Layer, settings.SingleLayer ? (short)7 : line.ColorIndex);
+                GeometryBuilder.AddPolyline3d(tr, modelSpace, line, layerId, colorOnEntity: settings.SingleLayer);
             }
 
             if (builtAxis != null && settings.KeepGeneratedAxis)
@@ -311,8 +312,9 @@ public class Commands
             var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
             foreach (var line in result.Lines)
             {
-                var layerId = LayerManager.EnsureLayer(db, tr, line.Layer, line.ColorIndex);
-                GeometryBuilder.AddPolyline3d(tr, modelSpace, line, layerId);
+                // Capa única: la capa se crea en color 7 y cada línea lleva el color de su fila como color de entidad.
+                var layerId = LayerManager.EnsureLayer(db, tr, line.Layer, settings.SingleLayer ? (short)7 : line.ColorIndex);
+                GeometryBuilder.AddPolyline3d(tr, modelSpace, line, layerId, colorOnEntity: settings.SingleLayer);
             }
             tr.Commit();
             ReportWriter.Write(ed, result);

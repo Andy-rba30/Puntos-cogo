@@ -33,9 +33,10 @@ public static class ClassificationProposer
             }
             else
             {
-                // En la carga inicial solo se resuelve por catálogo (código o alias);
-                // la similitud se aplica al pulsar "Sugerir similares".
-                ApplyDestination(rule, catalog.Resolve(norm) ?? "", catalog, settings);
+                // En la carga inicial solo se resuelve por catálogo (código o alias); la similitud se aplica al
+                // pulsar "Sugerir similares". Con UseDescriptionAsCode, lo desconocido se propone a sí mismo.
+                var destination = catalog.Resolve(norm) ?? (settings.UseDescriptionAsCode ? norm : "");
+                ApplyDestination(rule, destination, catalog, settings);
             }
 
             rule.LayerBase = LayerNames.ProposeBase(rule, settings);
@@ -119,6 +120,16 @@ public static class ClassificationProposer
         else
             rule.BlockJoin = BlockJoin.Block;
         rule.LayerBase = LayerNames.ProposeBase(rule, settings);
+    }
+
+    /// <summary>
+    /// Código destino "tal cual el nombre": la descripción normalizada sin marcas ni serie ("cunetq B" → "CUNETQ B",
+    /// "cuneta f" → "CUNETA"). Devuelve null para descripciones vacías o numéricas (quedan en Ignorar).
+    /// </summary>
+    public static string? CodeFromDescription(string? original, Settings settings)
+    {
+        var baseCode = new DescriptionParser(settings).Parse(original).BaseCode;
+        return DescriptionNormalizer.IsEmptyOrNumeric(baseCode) ? null : baseCode;
     }
 
     /// <summary>Tipo por defecto: Punto para nombres de objeto conocidos, Línea para el resto.</summary>

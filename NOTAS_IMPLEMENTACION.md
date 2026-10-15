@@ -291,9 +291,25 @@ eligió lo más simple y se deja aquí para revisarlo.
     Lectura y cálculo: unos 250 ms. Para dibujar `b` o `v` como líneas longitudinales hay que usar
     `PLANIMETRIA` con eje: en el archivo vienen como un punto por sección, no como bloques.
 
+## Capa única y nombres como código
+
+46. **Capa única** (`Settings.SingleLayer`, `SingleLayerName` = `Planimetría`): se aplica en los dos motores al
+    calcular la capa de cada `LineSequence` (`LayerNames.ApplySingleLayer`), así el reporte agrupa por esa capa.
+    La capa se crea en color 7 y el comando pone el color de la fila en la entidad (`GeometryBuilder` con
+    `colorOnEntity`), para que los códigos sigan distinguiéndose. Solo afecta a las líneas: los objetos
+    puntuales (`PT-…`) y el eje generado conservan su capa. Se edita en "Al dibujar" y en Parámetros.
+
+47. **Usar nombre como código**: `ClassificationProposer.CodeFromDescription` devuelve el código base de la
+    descripción (sin marcas ni serie: `cunetq B` → `CUNETQ B`, `cuneta f` → `CUNETA`) o null si es vacía o
+    numérica. El botón (`ClassificationViewModel.UseNamesAsCodes`) actúa sobre las filas marcadas o seleccionadas
+    y, sin selección, sobre las que están sin resolver; una fila resuelta por catálogo solo cambia si se la
+    selecciona a propósito. El parámetro `useDescriptionAsCode` hace lo mismo en la carga inicial, después del
+    catálogo (los alias conocidos siguen yendo a su código). Es la alternativa a "Sugerir similares" cuando las
+    descripciones ya son códigos válidos y la similitud agrupa de más (p. ej. sufijos comunes como `… B`).
+
 ## Pendiente de verificar en una máquina con Civil 3D 2027
 
-46. Las 198 pruebas cubren Core/, Models/, Config/ y los view-models. El plugin completo se compiló en
+48. Las 207 pruebas cubren Core/, Models/, Config/ y los view-models. El plugin completo se compiló en
     Linux contra *stubs* de Autodesk. Lo que **no** se pudo verificar:
     - Firmas reales: `Alignment.PointLocation`/`StationOffset` (parámetros `ref`),
       `CogoPoint.RawDescription` con *setter*, `Curve.GetClosestPointTo(Point3d, Vector3d, bool)`,

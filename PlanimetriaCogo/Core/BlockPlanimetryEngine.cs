@@ -173,7 +173,7 @@ public sealed class BlockPlanimetryEngine
         var rule = ruleByCode[code];
         var series = _settings.SplitSeries ? points[0].Series : null;
         var layerBase = string.IsNullOrWhiteSpace(rule.LayerBase) ? LayerNames.ProposeBase(rule, _settings) : rule.LayerBase;
-        var layer = LayerNames.Sanitize(layerBase);
+        var layer = LayerNames.ApplySingleLayer(LayerNames.Sanitize(layerBase), _settings);
         var group = new LineGroup(code, Side.Center, series, points);
 
         foreach (var sequence in BreakRules.Split(group, _breakSettings, result.Cuts))

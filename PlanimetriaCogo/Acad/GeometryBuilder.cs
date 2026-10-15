@@ -9,13 +9,22 @@ namespace PlanimetriaCogo.Acad;
 /// <summary>Crea las Polyline3d de salida.</summary>
 public static class GeometryBuilder
 {
-    /// <summary>Polyline3d por la secuencia; cerrada si <see cref="LineSequence.Closed"/> (bloques cerrados del modo CSV).</summary>
-    public static ObjectId AddPolyline3d(Transaction tr, BlockTableRecord space, LineSequence line, ObjectId layerId)
+    /// <summary>
+    /// Polyline3d por la secuencia; cerrada si <see cref="LineSequence.Closed"/> (bloques cerrados del modo CSV).
+    /// Con <paramref name="colorOnEntity"/> (capa única) el color de la fila se pone en la entidad, no en la capa.
+    /// </summary>
+    public static ObjectId AddPolyline3d(Transaction tr, BlockTableRecord space, LineSequence line, ObjectId layerId, bool colorOnEntity = false)
     {
         var vertices = new Point3dCollection();
         foreach (var p in line.Points)
             vertices.Add(new Point3d(p.Point.X, p.Point.Y, p.Point.Z));
-        return AddPolyline3d(tr, space, vertices, layerId, line.Closed);
+        var id = AddPolyline3d(tr, space, vertices, layerId, line.Closed);
+        if (colorOnEntity)
+        {
+            var polyline = (Polyline3d)tr.GetObject(id, OpenMode.ForWrite);
+            polyline.ColorIndex = line.ColorIndex is > 0 and < 256 ? line.ColorIndex : 7;
+        }
+        return id;
     }
 
     /// <summary>Polyline3d por los puntos dados (p. ej. el eje generado desde puntos, §10.1).</summary>

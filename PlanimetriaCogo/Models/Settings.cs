@@ -105,7 +105,21 @@ public sealed class Settings
     /// <summary>Carpeta del reporte. Vacío = la carpeta del DWG (o %APPDATA%\PlanimetriaCogo\reportes si el DWG no está guardado).</summary>
     public string ReportFolder { get; set; } = "";
 
+    // ---- Clasificación ----
+
+    /// <summary>
+    /// Al abrir la ventana, proponer como código destino la propia descripción (normalizada) cuando el catálogo
+    /// no la conoce, en vez de dejarla "sin resolver". Equivale a pulsar "Usar nombre como código" al cargar.
+    /// </summary>
+    public bool UseDescriptionAsCode { get; set; } = false;
+
     // ---- Capas ----
+
+    /// <summary>Dibujar todas las líneas en una sola capa (<see cref="SingleLayerName"/>) en vez de una capa por código y lado.</summary>
+    public bool SingleLayer { get; set; } = false;
+
+    /// <summary>Nombre de la capa única. Cada línea conserva el color de su fila como color de entidad.</summary>
+    public string SingleLayerName { get; set; } = "Planimetría";
 
     /// <summary>Prefijo de capa para líneas.</summary>
     public string LineLayerPrefix { get; set; } = "PL-";
@@ -151,6 +165,9 @@ public sealed class Settings
         UpdateDescriptionsInDrawing = other.UpdateDescriptionsInDrawing;
         ReportToFile = other.ReportToFile;
         ReportFolder = other.ReportFolder;
+        UseDescriptionAsCode = other.UseDescriptionAsCode;
+        SingleLayer = other.SingleLayer;
+        SingleLayerName = other.SingleLayerName;
         LineLayerPrefix = other.LineLayerPrefix;
         PointLayerPrefix = other.PointLayerPrefix;
         LeftLayerSuffix = other.LeftLayerSuffix;

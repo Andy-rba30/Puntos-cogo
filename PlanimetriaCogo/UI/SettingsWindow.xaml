@@ -96,6 +96,12 @@
             </Grid>
         </GroupBox>
 
+        <GroupBox Header="Clasificación">
+            <CheckBox IsChecked="{Binding UseDescriptionAsCode}"
+                      Content="Proponer la propia descripción como código destino cuando no está en el catálogo (nada queda sin resolver)"
+                      ToolTip="Equivale a pulsar 'Usar nombre como código' al abrir la ventana. Las descripciones vacías o numéricas siguen en Ignorar." />
+        </GroupBox>
+
         <GroupBox Header="Modo por bloques (PLANIMETRIACSV: planimetría desde un archivo, en el orden de campo)">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -129,9 +135,15 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                    <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                 </Grid.RowDefinitions>
                 <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" IsChecked="{Binding ReportToFile}" Content="Guardar el reporte en archivos .txt y .csv" />
+                <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+                    <CheckBox x:Name="SingleLayerCheck" IsChecked="{Binding SingleLayer}" Content="Dibujar todas las líneas en una sola capa:"
+                              ToolTip="Cada línea conserva el color de su fila como color de entidad. Los objetos puntuales siguen usando su capa." />
+                    <TextBox Width="160" Margin="8,2,0,2" IsEnabled="{Binding IsChecked, ElementName=SingleLayerCheck}"
+                             Text="{Binding SingleLayerName, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
                 <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Label}" Text="Carpeta del reporte (vacío = carpeta del DWG):" />
                 <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ReportFolder, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource Label}" Text="Prefijos de capa (líneas / puntos):" />

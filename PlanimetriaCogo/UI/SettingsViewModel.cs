@@ -79,7 +79,10 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     public bool ReportToFile { get => _work.ReportToFile; set => Set(v => _work.ReportToFile = v, value); }
     public string ReportFolder { get => _work.ReportFolder; set => Set(v => _work.ReportFolder = v, value); }
 
-    // ---- Capas ----
+    // ---- Clasificación y capas ----
+    public bool UseDescriptionAsCode { get => _work.UseDescriptionAsCode; set => Set(v => _work.UseDescriptionAsCode = v, value); }
+    public bool SingleLayer { get => _work.SingleLayer; set => Set(v => _work.SingleLayer = v, value); }
+    public string SingleLayerName { get => _work.SingleLayerName; set => Set(v => _work.SingleLayerName = v, value); }
     public string LineLayerPrefix { get => _work.LineLayerPrefix; set => Set(v => _work.LineLayerPrefix = v, value); }
     public string PointLayerPrefix { get => _work.PointLayerPrefix; set => Set(v => _work.PointLayerPrefix = v, value); }
     public string LeftLayerSuffix { get => _work.LeftLayerSuffix; set => Set(v => _work.LeftLayerSuffix = v, value); }
@@ -99,6 +102,8 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         if (string.IsNullOrWhiteSpace(_work.GeneratedAxisLayer)) errors.Add("Indique la capa del eje generado.");
         if (string.IsNullOrWhiteSpace(_work.LineLayerPrefix) && string.IsNullOrWhiteSpace(_work.PointLayerPrefix))
             errors.Add("Indique al menos un prefijo de capa.");
+        if (_work.SingleLayer && string.IsNullOrWhiteSpace(_work.SingleLayerName))
+            errors.Add("Indique el nombre de la capa única.");
         if (_work.UseDescriptionMarks)
         {
             var all = _work.StartMarks.Concat(_work.EndMarks).Concat(_work.LeftMarks).Concat(_work.RightMarks)

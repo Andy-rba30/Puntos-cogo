@@ -134,7 +134,7 @@ public sealed class PlanimetryEngine
             var rule = ruleByCode[group.Code];
             // Si el usuario dejó la capa vacía, se usa la propuesta por defecto.
             var layerBase = string.IsNullOrWhiteSpace(rule.LayerBase) ? LayerNames.ProposeBase(rule, _settings) : rule.LayerBase;
-            var layer = LayerNames.ForLine(layerBase, group.Side, rule.SplitBySide, _settings);
+            var layer = LayerNames.ApplySingleLayer(LayerNames.ForLine(layerBase, group.Side, rule.SplitBySide, _settings), _settings);
 
             foreach (var sequence in BreakRules.Split(group, _settings, result.Cuts))
             {

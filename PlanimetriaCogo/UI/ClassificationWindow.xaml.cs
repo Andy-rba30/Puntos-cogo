@@ -55,6 +55,12 @@ public partial class ClassificationWindow : Window
         _viewModel.SuggestSimilar();
     }
 
+    private void UseNamesButton_Click(object sender, RoutedEventArgs e)
+    {
+        CommitPendingEdits();
+        _viewModel.UseNamesAsCodes(RowsGrid.SelectedItems.OfType<ClassificationRowViewModel>());
+    }
+
     private void UnifyButton_Click(object sender, RoutedEventArgs e)
     {
         CommitPendingEdits();
@@ -165,6 +171,8 @@ public partial class ClassificationWindow : Window
                 return;
         }
 
+        // El nombre de la capa única se confirma al perder el foco: se fuerza antes de cerrar.
+        ((Button)sender).Focus();
         DialogResult = true;
         Close();
     }

@@ -200,6 +200,9 @@
             <Button DockPanel.Dock="Left" Content="Sugerir similares" Style="{StaticResource ToolButton}"
                     ToolTip="Agrupa descripciones parecidas (mayúsculas, errores de tipeo, prefijos) y propone un código destino común"
                     Click="SuggestButton_Click" />
+            <Button DockPanel.Dock="Left" Content="Usar nombre como código" Style="{StaticResource ToolButton}"
+                    ToolTip="Cada fila toma su propia descripción como código destino (cunetq B → CUNETQ B), sin catálogo ni similitud. Con filas marcadas o seleccionadas actúa sobre ellas; si no, sobre todas las que están sin resolver."
+                    Click="UseNamesButton_Click" />
             <TextBlock DockPanel.Dock="Left" Text="Código:" VerticalAlignment="Center" Margin="12,0,4,0" />
             <ComboBox DockPanel.Dock="Left" Width="140" IsEditable="True"
                       ItemsSource="{Binding AvailableCodes}"
@@ -223,6 +226,14 @@
                           ToolTip="Los puntos de tipo Punto pasan a la capa indicada en su fila (PT-CASA…). Nunca se unen." />
                 <CheckBox Margin="0,2,16,2" IsChecked="{Binding ReportToFile}"
                           Content="Guardar reporte en archivo (.txt y .csv)" />
+                <StackPanel Orientation="Horizontal" Margin="0,2,16,2">
+                    <CheckBox x:Name="SingleLayerCheck" VerticalAlignment="Center" IsChecked="{Binding SingleLayer}"
+                              Content="Todas las líneas en una sola capa:"
+                              ToolTip="En vez de una capa por código (y lado), todas las polilíneas van a esta capa; cada una conserva el color de su fila como color de entidad. Los objetos puntuales siguen usando su capa." />
+                    <TextBox Width="140" Margin="6,0,0,0" VerticalContentAlignment="Center"
+                             IsEnabled="{Binding IsChecked, ElementName=SingleLayerCheck}"
+                             Text="{Binding SingleLayerName, UpdateSourceTrigger=LostFocus}" />
+                </StackPanel>
                 <CheckBox Margin="0,2,16,2" IsChecked="{Binding KeepGeneratedAxis}"
                           Visibility="{Binding AxisFromPoints, Converter={StaticResource BoolToVisibility}}"
                           Content="Conservar el eje generado desde puntos (Polyline3d)" />
